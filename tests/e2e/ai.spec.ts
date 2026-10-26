@@ -81,12 +81,23 @@ test("T4.5-5 a job left queued with nobody working on it is picked up when the p
   await a.context.close();
 });
 
+test("a quota failure says HiveMind is temporarily unavailable and survives a reload", async ({ browser }) => {
+  const { a } = await twoMembers(browser);
+  await send(a.page, "quota please [fail:quota]");
+  await expect(a.page.getByTestId("ai-failed")).toBeVisible({ timeout: 20_000 });
+  await expect(a.page.getByTestId("ai-failed")).toContainText("temporarily unavailable");
+  await expect(assistant(a.page)).toHaveCount(0);
+  await a.page.reload();
+  await expect(a.page.getByTestId("ai-failed")).toHaveCount(1);
+  await a.context.close();
+});
+
 test("a failed reply shows a notice under the message, and the next message still gets answered", async ({ browser }) => {
   const { a, b } = await twoMembers(browser);
-  await send(a.page, "please fail [fail:quota]");
+  await send(a.page, "please fail [fail:provider]");
   for (const page of [a.page, b.page]) {
     await expect(page.getByTestId("ai-failed")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId("ai-failed")).toContainText("temporarily unavailable");
+    await expect(page.getByTestId("ai-failed")).toContainText("couldn't respond");
     await expect(assistant(page)).toHaveCount(0);
   }
   await send(b.page, "still there?");
@@ -97,4 +108,38 @@ test("a failed reply shows a notice under the message, and the next message stil
   await expect(a.page.getByTestId("ai-failed")).toHaveCount(1);
   await a.context.close();
   await b.context.close();
+});
+
+test("T5.1-3 / T5.1-4 Retry brings back exactly one reply, even when clicked twice", async ({ browser }) => {
+  const { a, b, groupId } = await twoMembers(browser);
+  await send(a.page, "flaky one [fail-once:provider]");
+  await expect(a.page.getByTestId("ai-failed")).toBeVisible({ timeout: 20_000 });
+  await expect(b.page.getByTestId("ai-failed")).toBeVisible({ timeout: 20_000 });
+
+  const retry = a.page.getByRole("button", { name: "Retry" });
+  await retry.dblclick();
+  await expect(assistant(a.page)).toHaveCount(1, { timeout: 25_000 });
+  await expect(assistant(b.page)).toContainText("Mock reply to: flaky one", { timeout: 25_000 });
+  await expect(a.page.getByTestId("ai-failed")).toHaveCount(0);
+  await a.page.waitForTimeout(3000);
+  const { data } = await admin.from("messages").select("id").eq("group_id", groupId).eq("type", "assistant");
+  expect(data).toHaveLength(1);
+  await a.context.close();
+  await b.context.close();
+});
+
+test("T5.1-5 a message that keeps failing can be retried only twice more, then the button is gone", async ({ browser }) => {
+  const { a } = await twoMembers(browser);
+  await send(a.page, "hopeless [fail:provider]");
+  const failed = a.page.getByTestId("ai-failed");
+  await expect(failed).toBeVisible({ timeout: 20_000 });
+  for (let attempt = 2; attempt <= 3; attempt++) {
+    await a.page.getByRole("button", { name: "Retry" }).click();
+    await expect(a.page.getByTestId("ai-thinking")).toBeVisible({ timeout: 10_000 });
+    await expect(a.page.getByTestId("ai-thinking")).toHaveCount(0, { timeout: 25_000 });
+    await expect(failed).toBeVisible();
+  }
+  await expect(a.page.getByRole("button", { name: "Retry" })).toHaveCount(0);
+  await expect(a.page.getByTestId("ai-retry-limit")).toBeVisible();
+  await a.context.close();
 });

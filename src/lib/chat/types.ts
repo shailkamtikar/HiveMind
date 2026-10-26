@@ -20,6 +20,9 @@ export type ClientJob = {
   trigger_message_id: string;
   status: JobStatus;
   error_category: string | null;
+  attempts: number;
+  /** Server time of the last change; lets late or repeated events be ignored. Null for a not-yet-confirmed job. */
+  updated_at: string | null;
 };
 
 /** A message as the chat UI holds it; `seq` is null while a send is still pending or failed. */

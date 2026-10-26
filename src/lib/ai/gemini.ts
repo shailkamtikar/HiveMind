@@ -9,6 +9,9 @@ const DEFAULT_TIMEOUT_MS = 25_000;
 
 type Options = { timeoutMs?: number; signal?: AbortSignal };
 
+/** Messages already seen by a "[fail-once:...]" request, so the second attempt can succeed. */
+const failedOnce = new Set<string>();
+
 /** Deterministic stand-in for Gemini, used only when AI_MODE=mock (never in production). */
 async function mockReply(turns: AiTurn[], signal: AbortSignal): Promise<string> {
   const last = [...turns].reverse().find((t) => t.role === "user")?.text ?? "";
@@ -25,6 +28,11 @@ async function mockReply(turns: AiTurn[], signal: AbortSignal): Promise<string> 
     });
   }
   if (failure) throw new AiError(failure[1] as AiErrorCategory);
+  const once = /\[fail-once:(quota|timeout|provider|safety|internal)\]/.exec(body);
+  if (once && !failedOnce.has(body)) {
+    failedOnce.add(body);
+    throw new AiError(once[1] as AiErrorCategory);
+  }
   return `Mock reply to: ${body}`;
 }
 

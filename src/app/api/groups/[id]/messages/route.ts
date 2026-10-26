@@ -2,6 +2,7 @@ import { after, type NextRequest } from "next/server";
 import { processGroup } from "@/lib/ai/processor";
 import { authorizeGroup as authorize, json, notFound } from "@/lib/api/group";
 import { getConfig } from "@/lib/config";
+import { checkRateLimit, tooManyRequests } from "@/lib/rateLimit";
 import { historyQuerySchema, sendMessageSchema } from "@/lib/validation/message";
 import { fetchMessagesPage } from "@/lib/chat/queries";
 import type { ServerMessage } from "@/lib/chat/types";
@@ -41,6 +42,9 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/groups/
   }
 
   const { supabase, user } = auth;
+  const limit = await checkRateLimit(user.id, "messages");
+  if (!limit.allowed) return tooManyRequests(limit.retryAfter, "messages");
+
   const row = {
     ...(parsed.data.id ? { id: parsed.data.id } : {}),
     group_id: id,

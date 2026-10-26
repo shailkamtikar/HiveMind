@@ -8,6 +8,8 @@ describe("getConfig", () => {
       maxMessageLength: 1000,
       aiContextMessages: 20,
       inviteExpiryDays: 3,
+      messagesPerMinute: 20,
+      aiCallsPerMinute: 6,
     });
   });
   it("accepts overrides", () => {

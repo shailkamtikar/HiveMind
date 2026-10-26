@@ -114,3 +114,12 @@ describe("generateReply (mock mode)", () => {
     await expect(generateReply(turns)).rejects.toMatchObject({ category: "internal" }); // fell through to live, unconfigured
   });
 });
+
+describe("generateReply (mock mode, fail-once)", () => {
+  it("fails the first time a message is seen and answers the second time", async () => {
+    vi.stubEnv("AI_MODE", "mock");
+    const t = [{ role: "user" as const, text: "Ann: flaky [fail-once:provider]" }];
+    await expect(generateReply(t)).rejects.toMatchObject({ category: "provider" });
+    expect(await generateReply(t)).toBe("Mock reply to: flaky [fail-once:provider]");
+  });
+});

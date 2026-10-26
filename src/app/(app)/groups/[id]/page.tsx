@@ -45,7 +45,7 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
   // AI work that is waiting, running or failed, so the chat can show "thinking" and failure notices from the start.
   const { data: jobs } = await supabase
     .from("ai_jobs")
-    .select("id, trigger_message_id, status, error_category")
+    .select("id, trigger_message_id, status, error_category, attempts, updated_at")
     .eq("group_id", group.id)
     .in("status", ["queued", "processing", "failed"])
     .order("created_at", { ascending: false })

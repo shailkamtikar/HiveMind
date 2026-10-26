@@ -88,8 +88,8 @@ export function Chat({
       const next = new Map(cur);
       for (const j of incoming) {
         const known = next.get(j.trigger_message_id);
-        // A finished job is never reopened by a late, older event.
-        if (known && (known.status === "succeeded" || known.status === "failed") && (j.status === "queued" || j.status === "processing")) continue;
+        // A late or repeated event must not undo something newer (e.g. "processing" arriving after "succeeded").
+        if (known?.updated_at && j.updated_at && j.updated_at < known.updated_at) continue;
         next.set(j.trigger_message_id, j);
       }
       return next;
@@ -113,13 +113,48 @@ export function Chat({
   const refreshJobs = useCallback(async () => {
     const { data } = await createClient()
       .from("ai_jobs")
-      .select("id, trigger_message_id, status, error_category")
+      .select("id, trigger_message_id, status, error_category, attempts, updated_at")
       .eq("group_id", groupId)
       .in("status", ["queued", "processing", "failed"])
       .order("created_at", { ascending: false })
       .limit(50);
-    if (data) mergeJobs(data as ClientJob[]);
+    if (!data) return;
+    const rows = data as ClientJob[];
+    mergeJobs(rows);
+    // Anything we still show as waiting that the database no longer lists has finished while we were not looking.
+    const listed = new Set(rows.map((j) => j.trigger_message_id));
+    setJobs((cur) => {
+      let changed = false;
+      const next = new Map(cur);
+      for (const [key, j] of cur) {
+        if ((j.status === "queued" || j.status === "processing") && !listed.has(key)) {
+          next.set(key, { ...j, status: "succeeded" });
+          changed = true;
+        }
+      }
+      return changed ? next : cur;
+    });
   }, [groupId, mergeJobs]);
+
+  const [retrying, setRetrying] = useState<string | null>(null);
+  const retryJob = useCallback(
+    async (jobId: string) => {
+      setRetrying(jobId);
+      try {
+        await fetch(`/api/groups/${groupId}/ai/retry`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jobId }),
+        });
+      } catch {
+        // Offline: the notice and its Retry button stay as they were.
+      } finally {
+        await refreshJobs();
+        setRetrying(null);
+      }
+    },
+    [groupId, refreshJobs],
+  );
 
   // Live delivery. Events can arrive twice or out of order; mergeMessages dedupes by id and sorts by seq.
   const resolveName = useCallback(async (userId: string) => {
@@ -221,11 +256,13 @@ export function Chat({
         if (res.ok && body.message) {
           setMessages((cur) => mergeMessages(cur, [body.message as ServerMessage]));
           // The database has queued a job for this message; show it right away instead of waiting for the event.
-          mergeJobs([{ id: `pending-${id}`, trigger_message_id: id, status: "queued", error_category: null }]);
+          mergeJobs([{ id: `pending-${id}`, trigger_message_id: id, status: "queued", error_category: null, attempts: 0, updated_at: null }]);
           return;
         }
         const text =
-          res.status === 400 && typeof body.error === "string"
+          res.status === 429
+            ? `You're sending messages too fast. Try again in ${Number(body.retryAfter) || 30} seconds.`
+            : res.status === 400 && typeof body.error === "string"
             ? body.error
             : res.status === 401
               ? "You were signed out. Sign in again to send."
@@ -342,7 +379,13 @@ export function Chat({
                   animate={!initialIds.has(m.id)}
                   onRetry={retry}
                 />
-                {jobs.get(m.id)?.status === "failed" && <AiFailedNotice category={jobs.get(m.id)!.error_category} />}
+                {jobs.get(m.id)?.status === "failed" && (
+                  <AiFailedNotice
+                    job={jobs.get(m.id)!}
+                    retrying={retrying === jobs.get(m.id)!.id}
+                    onRetry={retryJob}
+                  />
+                )}
               </Fragment>
             ))}
             {thinking && (

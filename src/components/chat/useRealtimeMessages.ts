@@ -76,6 +76,8 @@ export function useRealtimeMessages(
                 trigger_message_id: row.trigger_message_id,
                 status: row.status,
                 error_category: row.error_category ?? null,
+                attempts: row.attempts ?? 0,
+                updated_at: row.updated_at ?? null,
               });
             }
           },
