@@ -1900,3 +1900,13 @@ Recorded while building. These supersede the milestone text above where they dif
 5. **Milestone 0.4:** built before the references were chosen; `docs/design/references/README.md` is waiting for your 3 to 5 reference links, and the look still needs your approval on `/design` (dev only).
 6. **Magic-link email:** the end-to-end sign-in is verified with admin-generated links (no inbox needed). Sending a real email through Supabase and clicking it is a manual check for you (T1.2-1), and requires the Site URL and redirect URL set in the Supabase dashboard.
 7. **Cookies:** Supabase's SSR session cookies are not HttpOnly by design (the browser client reads them); the playbook line claiming HttpOnly cookies was wrong.
+
+## Phase 2 additions to the implementation log
+
+8. **Realtime auth in the browser:** the SSR browser client does not attach the session token to the realtime socket by itself. `useRealtimeMessages` calls `supabase.auth.getSession()` then `supabase.realtime.setAuth(token)` before subscribing; without this, Row Level Security treats the socket as anonymous and no events arrive. The same applies to Node test clients.
+9. **Realtime isolation result (T2.3-3):** a signed-in non-member receives no events at all for another group's messages. A signed-out client holding only the public key can receive an *empty* `{}` event (no id, group, sender or text). This is Supabase behaviour; it reveals only that some insert happened. Documented as a known limitation; reconsider in Milestone 5.4.
+10. **Send ordering:** parallel POSTs from one browser could be stored out of order (A4 before A1 when sending 10 messages instantly). The chat now sends one message at a time per open chat (`sendQueue` in `Chat.tsx`), so a member's own messages are always stored in typed order. Failed messages are retried through the same queue with the same message id.
+11. **Message ids:** clients may supply the message `id` (column-level grant), so a retried send is idempotent; sending an id that belongs to someone else's message returns 409.
+12. **Gap fill:** on every (re)subscription, `online` event and tab-visible event the chat fetches `after=<last seq>` (200 per page, repeated until caught up). This also covers messages inserted between server render and the first subscription.
+13. **Entrance animation:** only messages that arrive after page load animate (160 ms), and the global reduced-motion rule disables it.
+14. **Names in live events:** realtime rows carry no display name; the chat resolves names from the member list and looks up unknown senders from `profiles`.

@@ -1,12 +1,22 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { mergeMessages, sortMessages, toChatMessage } from "@/lib/chat/messages";
+import { lastSeq, mergeMessages, sortMessages, toChatMessage } from "@/lib/chat/messages";
 import type { ChatMessage, ServerMessage } from "@/lib/chat/types";
 import { Composer } from "./Composer";
+import { ConnectionBanner, type ConnectionState } from "./ConnectionBanner";
 import { MessageItem } from "./MessageItem";
 import { useRealtimeMessages } from "./useRealtimeMessages";
+
+function subscribeOnline(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
 
 type Props = {
   groupId: string;
@@ -32,6 +42,10 @@ export function Chat({
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [socket, setSocket] = useState<"connecting" | "connected" | "reconnecting">("connecting");
+  const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
+  const messagesRef = useRef(messages);
+  const gap = useRef({ running: false, again: false });
 
   // Messages present at page load do not animate; only later arrivals do.
   const [initialIds] = useState(() => new Set(initialMessages.map((m) => m.id)));
@@ -68,13 +82,70 @@ export function Chat({
     setMessages((cur) => cur.map((m) => (m.sender_id === userId && !m.sender_name ? { ...m, sender_name: name } : m)));
   }, []);
 
+  // Anything that happened while we were disconnected is fetched from the database, newest-known seq onwards.
+  const fillGap = useCallback(async () => {
+    if (gap.current.running) {
+      gap.current.again = true;
+      return;
+    }
+    gap.current.running = true;
+    try {
+      do {
+        gap.current.again = false;
+        let more = true;
+        while (more) {
+          const res = await fetch(`/api/groups/${groupId}/messages?after=${lastSeq(messagesRef.current)}&limit=200`);
+          if (!res.ok) break;
+          const body = (await res.json()) as { messages: ServerMessage[]; hasMore: boolean };
+          if (body.messages.length) {
+            setMessages((cur) => {
+              const merged = mergeMessages(cur, body.messages);
+              messagesRef.current = merged; // next page must start after what we just merged
+              return merged;
+            });
+          }
+          more = body.hasMore && body.messages.length > 0;
+        }
+      } while (gap.current.again);
+    } catch {
+      // Still offline or the request failed; the next reconnect/online/visible event tries again.
+    } finally {
+      gap.current.running = false;
+    }
+  }, [groupId]);
+
   useRealtimeMessages(groupId, {
     onMessage: (m) => {
       const known = m.sender_id ? (names.current.get(m.sender_id) ?? null) : null;
       setMessages((cur) => mergeMessages(cur, [{ ...m, sender_name: known }]));
       if (m.sender_id && !known) void resolveName(m.sender_id);
     },
+    onStatus: (status) => {
+      setSocket(status === "connected" ? "connected" : "reconnecting");
+      // (Re)subscribed: catch up on anything missed, including between page render and first subscribe.
+      if (status === "connected") void fillGap();
+    },
   });
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  // Catch up when the network returns or the tab becomes visible again.
+  useEffect(() => {
+    const refresh = () => void fillGap();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [fillGap]);
+
+  const connection: ConnectionState = !online ? "offline" : socket;
 
   const post = useCallback(
     async (id: string, content: string) => {
@@ -172,7 +243,8 @@ export function Chat({
   }
 
   return (
-    <div className="flex h-[min(70dvh,40rem)] min-h-[24rem] flex-col rounded-[var(--radius)] border border-border bg-surface">
+    <div className="flex h-[min(70dvh,40rem)] min-h-[24rem] flex-col overflow-hidden rounded-[var(--radius)] border border-border bg-surface">
+      <ConnectionBanner state={connection} />
       <div ref={listRef} onScroll={onScroll} className="flex-1 overflow-y-auto p-4" data-testid="message-list">
         {hasMore && (
           <div className="mb-3 text-center">
@@ -210,7 +282,11 @@ export function Chat({
           </ul>
         )}
       </div>
-      <Composer maxLength={maxLength} onSend={send} />
+      <Composer
+        maxLength={maxLength}
+        onSend={send}
+        blockedReason={online ? undefined : "You're offline. Reconnect to send. Your draft is kept."}
+      />
     </div>
   );
 }

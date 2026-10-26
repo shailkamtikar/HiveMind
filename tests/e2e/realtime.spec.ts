@@ -1,33 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import { admin } from "../helpers/users";
-import { cleanupTestUsers, signedInContext } from "./helpers";
+import { cleanupTestUsers, twoMembers } from "./helpers";
 
 test.afterAll(async () => {
   await cleanupTestUsers();
 });
 
 const messages = (page: Page) => page.getByTestId("message");
-
-/** A owns a group; B is added as a member (invitations arrive in Phase 3). Both open the chat. */
-async function twoMembers(browser: import("@playwright/test").Browser) {
-  const a = await signedInContext(browser, "rtA");
-  const b = await signedInContext(browser, "rtB");
-  await admin.from("profiles").update({ display_name: "Alice" }).eq("id", a.user.id);
-  await admin.from("profiles").update({ display_name: "Bob" }).eq("id", b.user.id);
-
-  await a.page.getByLabel("New conversation").fill("Live chat");
-  await a.page.getByRole("button", { name: "Start conversation" }).click();
-  await a.page.waitForURL(/\/groups\/[0-9a-f-]{36}$/);
-  const url = a.page.url();
-  const groupId = url.split("/").pop()!;
-  await admin.from("group_members").insert({ group_id: groupId, user_id: b.user.id, role: "member" });
-
-  await b.page.goto(url);
-  await expect(b.page.locator("#composer")).toBeVisible();
-  // Let both realtime subscriptions settle before sending.
-  await a.page.waitForTimeout(2500);
-  return { a, b, groupId, url };
-}
 
 test("T2.3-1 / T2.3-2 a message reaches the other member live, and the sender sees it once", async ({ browser }) => {
   const { a, b } = await twoMembers(browser);

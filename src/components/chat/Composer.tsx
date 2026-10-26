@@ -5,17 +5,18 @@ import { Button } from "@/components/ui/Button";
 
 export function Composer({
   maxLength,
-  disabled,
+  blockedReason,
   onSend,
 }: {
   maxLength: number;
-  disabled?: boolean;
+  /** When set, sending is blocked and this explains why (the draft is kept). */
+  blockedReason?: string;
   onSend: (content: string) => void;
 }) {
   const [value, setValue] = useState("");
   const trimmed = value.trim();
   const tooLong = trimmed.length > maxLength;
-  const canSend = trimmed.length > 0 && !tooLong && !disabled;
+  const canSend = trimmed.length > 0 && !tooLong && !blockedReason;
 
   function submit() {
     if (!canSend) return;
@@ -60,7 +61,7 @@ export function Composer({
         </Button>
       </div>
       <p id="composer-hint" className="mt-1.5 flex justify-between font-mono text-[11px] uppercase tracking-wide text-muted">
-        <span>Enter to send · Shift+Enter for a new line</span>
+        <span data-testid="composer-hint-text">{blockedReason ?? "Enter to send · Shift+Enter for a new line"}</span>
         {nearLimit && (
           <span className={tooLong ? "text-danger" : undefined} data-testid="char-count">
             {trimmed.length}/{maxLength}
