@@ -2,7 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/auth/getUser";
+import { getConfig } from "@/lib/config";
+import { fetchMessagesPage } from "@/lib/chat/queries";
 import { isUuid } from "@/lib/validation/group";
+import { Chat } from "@/components/chat/Chat";
 import { Avatar } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
 
@@ -11,6 +15,9 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
   // Malformed ids and ids of groups you cannot see both end in the same 404.
   if (!isUuid(id)) notFound();
   await connection();
+
+  const user = await getUser();
+  if (!user) notFound();
 
   const supabase = await createClient();
   const { data: group } = await supabase
@@ -31,21 +38,28 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
     : { data: [] };
   const nameOf = new Map((profiles ?? []).map((p) => [p.id, p.display_name]));
 
+  const history = await fetchMessagesPage(supabase, group.id, { limit: 30 });
+
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/groups" className="text-sm text-muted hover:text-foreground">
+        <Link href="/groups" className="font-mono text-[11px] uppercase tracking-wide text-muted hover:text-foreground">
           ← All conversations
         </Link>
         <h1 className="mt-2 font-display text-4xl">{group.name}</h1>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[1fr_16rem]">
-        <Card className="flex min-h-64 items-center justify-center text-center">
-          <p className="text-sm text-muted">Messages will appear here once chat is switched on.</p>
-        </Card>
-        <Card>
-          <h2 className="text-sm font-medium">
+        <Chat
+          groupId={group.id}
+          currentUserId={user.id}
+          currentUserName={nameOf.get(user.id) || "You"}
+          initialMessages={history.messages}
+          initialHasMore={history.hasMore}
+          maxLength={getConfig().maxMessageLength}
+        />
+        <Card className="h-fit">
+          <h2 className="font-mono text-[11px] uppercase tracking-wide text-muted">
             Members ({members?.length ?? 0}/{group.member_limit})
           </h2>
           <ul className="mt-3 flex flex-col gap-2">
@@ -55,7 +69,9 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
                 <li key={m.user_id} className="flex items-center gap-2 text-sm">
                   <Avatar name={name} />
                   <span className="truncate">{name}</span>
-                  {m.role === "owner" && <span className="ml-auto text-xs text-muted">Owner</span>}
+                  {m.role === "owner" && (
+                    <span className="ml-auto font-mono text-[11px] uppercase tracking-wide text-muted">Owner</span>
+                  )}
                 </li>
               );
             })}
