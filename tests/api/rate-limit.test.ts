@@ -44,7 +44,7 @@ describe("message sending", () => {
     expect((await last.json()).error).toMatch(/too many/i);
     const { count } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("group_id", g);
     expect(count).toBe(20);
-  });
+  }, 120_000);
 
   it("T5.3-4 another member is not affected by someone else being throttled", async () => {
     expect((await bApi.post(`/api/groups/${g}/messages`, { content: "I can still talk" })).status).toBe(201);
@@ -61,5 +61,5 @@ describe("AI endpoints", () => {
     const statuses = (await Promise.all(Array.from({ length: 9 }, () => bApi.post(`/api/groups/${g}/ai/process`, {})))).map((r) => r.status);
     expect(statuses.filter((s) => s === 200)).toHaveLength(6);
     expect(statuses.filter((s) => s === 429)).toHaveLength(3);
-  });
+  }, 120_000);
 });

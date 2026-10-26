@@ -40,7 +40,9 @@
     ".next-build/types/**/*.ts",
     ".next-build/dev/types/**/*.ts",
     ".next-test-ai/types/**/*.ts",
-    ".next-test-ai/dev/types/**/*.ts"
+    ".next-test-ai/dev/types/**/*.ts",
+    ".next-prod/types/**/*.ts",
+    ".next-prod/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
