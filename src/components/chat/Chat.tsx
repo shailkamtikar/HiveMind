@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { lastSeq, mergeMessages, sortMessages, toChatMessage } from "@/lib/chat/messages";
-import type { ChatMessage, ServerMessage } from "@/lib/chat/types";
+import type { ChatMessage, ClientJob, ServerMessage } from "@/lib/chat/types";
+import { AiFailedNotice } from "./AiFailedNotice";
 import { Composer } from "./Composer";
 import { ConnectionBanner, type ConnectionState } from "./ConnectionBanner";
 import { MessageItem } from "./MessageItem";
@@ -24,6 +25,8 @@ type Props = {
   currentUserName: string;
   initialMessages: ServerMessage[];
   initialHasMore: boolean;
+  /** AI jobs that are queued, processing or failed when the page loaded. */
+  initialJobs: ClientJob[];
   maxLength: number;
   /** user id -> display name for current members */
   memberNames: Record<string, string>;
@@ -35,6 +38,7 @@ export function Chat({
   currentUserName,
   initialMessages,
   initialHasMore,
+  initialJobs,
   maxLength,
   memberNames,
 }: Props) {
@@ -49,19 +53,12 @@ export function Chat({
 
   // Messages present at page load do not animate; only later arrivals do.
   const [initialIds] = useState(() => new Set(initialMessages.map((m) => m.id)));
-  // "Thinking" while the newest message is one a member just sent and no reply has landed (gives up after 45s).
-  const lastMessage = messages[messages.length - 1];
-  const waitingId =
-    lastMessage && lastMessage.type === "user" && lastMessage.seq !== null && !initialIds.has(lastMessage.id)
-      ? lastMessage.id
-      : null;
-  const [staleId, setStaleId] = useState<string | null>(null);
-  const thinking = waitingId !== null && waitingId !== staleId;
-  useEffect(() => {
-    if (!waitingId) return;
-    const timer = setTimeout(() => setStaleId(waitingId), 45_000);
-    return () => clearTimeout(timer);
-  }, [waitingId]);
+  // AI job state per trigger message. Events and fetches only ever move a job forward, never back.
+  const [jobs, setJobs] = useState<Map<string, ClientJob>>(() => new Map(initialJobs.map((j) => [j.trigger_message_id, j])));
+  const activeJobs = [...jobs.values()].filter((j) => j.status === "queued" || j.status === "processing");
+  const thinking = activeJobs.length > 0;
+  const waitingCount = activeJobs.length;
+  const kicking = useRef(false);
   const names = useRef(new Map(Object.entries({ ...memberNames, [currentUserId]: currentUserName })));
   // Sends go out one at a time so a member's own messages are stored in the order they typed them.
   const sendQueue = useRef<Promise<void>>(Promise.resolve());
@@ -79,12 +76,50 @@ export function Chat({
     } else if (stickToBottom.current) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [messages, thinking]);
+  }, [messages, waitingCount]);
 
   function onScroll() {
     const el = listRef.current;
     if (el) stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   }
+
+  const mergeJobs = useCallback((incoming: ClientJob[]) => {
+    setJobs((cur) => {
+      const next = new Map(cur);
+      for (const j of incoming) {
+        const known = next.get(j.trigger_message_id);
+        // A finished job is never reopened by a late, older event.
+        if (known && (known.status === "succeeded" || known.status === "failed") && (j.status === "queued" || j.status === "processing")) continue;
+        next.set(j.trigger_message_id, j);
+      }
+      return next;
+    });
+  }, []);
+
+  // Asks the server to work on this group's queue. Any member may do this; the database makes sure only one
+  // worker runs at a time, so extra kicks are harmless. This also recovers from a request that was dropped.
+  const kick = useCallback(async () => {
+    if (kicking.current) return;
+    kicking.current = true;
+    try {
+      await fetch(`/api/groups/${groupId}/ai/process`, { method: "POST" });
+    } catch {
+      // Offline or failed: the next kick (page load, reconnect, or the recovery timer) tries again.
+    } finally {
+      kicking.current = false;
+    }
+  }, [groupId]);
+
+  const refreshJobs = useCallback(async () => {
+    const { data } = await createClient()
+      .from("ai_jobs")
+      .select("id, trigger_message_id, status, error_category")
+      .eq("group_id", groupId)
+      .in("status", ["queued", "processing", "failed"])
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (data) mergeJobs(data as ClientJob[]);
+  }, [groupId, mergeJobs]);
 
   // Live delivery. Events can arrive twice or out of order; mergeMessages dedupes by id and sorts by seq.
   const resolveName = useCallback(async (userId: string) => {
@@ -102,6 +137,7 @@ export function Chat({
       return;
     }
     gap.current.running = true;
+    void refreshJobs();
     try {
       do {
         gap.current.again = false;
@@ -125,9 +161,10 @@ export function Chat({
     } finally {
       gap.current.running = false;
     }
-  }, [groupId]);
+  }, [groupId, refreshJobs]);
 
   useRealtimeMessages(groupId, {
+    onJob: (job) => mergeJobs([job]),
     onMessage: (m) => {
       const known = m.sender_id ? (names.current.get(m.sender_id) ?? null) : null;
       setMessages((cur) => mergeMessages(cur, [{ ...m, sender_name: known }]));
@@ -143,6 +180,18 @@ export function Chat({
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  // Work left over from before this page opened (or from a dropped request) is picked up here.
+  useEffect(() => {
+    if (initialJobs.some((j) => j.status === "queued" || j.status === "processing")) void kick();
+  }, [initialJobs, kick]);
+
+  // While anything is waiting, ask again every 20 s. It is cheap, and it rescues a job whose worker died.
+  useEffect(() => {
+    if (!thinking) return;
+    const timer = setInterval(() => void kick(), 20_000);
+    return () => clearInterval(timer);
+  }, [thinking, kick]);
 
   // Catch up when the network returns or the tab becomes visible again.
   useEffect(() => {
@@ -171,6 +220,8 @@ export function Chat({
         const body = await res.json().catch(() => ({}));
         if (res.ok && body.message) {
           setMessages((cur) => mergeMessages(cur, [body.message as ServerMessage]));
+          // The database has queued a job for this message; show it right away instead of waiting for the event.
+          mergeJobs([{ id: `pending-${id}`, trigger_message_id: id, status: "queued", error_category: null }]);
           return;
         }
         const text =
@@ -190,7 +241,7 @@ export function Chat({
         );
       }
     },
-    [groupId],
+    [groupId, mergeJobs],
   );
 
   const enqueue = useCallback(
@@ -284,13 +335,15 @@ export function Chat({
         ) : (
           <ul className="flex flex-col gap-3" aria-label="Messages" aria-live="polite">
             {messages.map((m) => (
-              <MessageItem
-                key={m.id}
-                message={m}
-                isOwn={m.sender_id === currentUserId}
-                animate={!initialIds.has(m.id)}
-                onRetry={retry}
-              />
+              <Fragment key={m.id}>
+                <MessageItem
+                  message={m}
+                  isOwn={m.sender_id === currentUserId}
+                  animate={!initialIds.has(m.id)}
+                  onRetry={retry}
+                />
+                {jobs.get(m.id)?.status === "failed" && <AiFailedNotice category={jobs.get(m.id)!.error_category} />}
+              </Fragment>
             ))}
             {thinking && (
               <li className="message-in flex items-center gap-3 py-1 pl-3" data-testid="ai-thinking">
@@ -299,6 +352,9 @@ export function Chat({
                 </span>
                 <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wide text-muted">
                   <span className="shiny">HiveMind is thinking</span>
+                  {waitingCount > 1 && (
+                    <span data-testid="ai-waiting">· {waitingCount - 1} more waiting</span>
+                  )}
                   <span aria-hidden="true" className="flex gap-1">
                     <i className="thinking-dot" />
                     <i className="thinking-dot" style={{ animationDelay: "150ms" }} />

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth/getUser";
 import { getConfig } from "@/lib/config";
 import { fetchMessagesPage } from "@/lib/chat/queries";
+import type { ClientJob } from "@/lib/chat/types";
 import { isUuid } from "@/lib/validation/group";
 import { Chat } from "@/components/chat/Chat";
 import { Avatar } from "@/components/ui/Avatar";
@@ -41,6 +42,14 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
   const nameOf = new Map((profiles ?? []).map((p) => [p.id, p.display_name]));
 
   const history = await fetchMessagesPage(supabase, group.id, { limit: 30 });
+  // AI work that is waiting, running or failed, so the chat can show "thinking" and failure notices from the start.
+  const { data: jobs } = await supabase
+    .from("ai_jobs")
+    .select("id, trigger_message_id, status, error_category")
+    .eq("group_id", group.id)
+    .in("status", ["queued", "processing", "failed"])
+    .order("created_at", { ascending: false })
+    .limit(50);
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,6 +79,7 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
           currentUserName={nameOf.get(user.id) || "You"}
           initialMessages={history.messages}
           initialHasMore={history.hasMore}
+          initialJobs={(jobs ?? []) as ClientJob[]}
           maxLength={getConfig().maxMessageLength}
           memberNames={Object.fromEntries(nameOf)}
         />

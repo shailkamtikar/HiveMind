@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { MessageType, ServerMessage } from "@/lib/chat/types";
+import type { ClientJob, MessageType, ServerMessage } from "@/lib/chat/types";
 
 export type RealtimeStatus = "connecting" | "connected" | "reconnecting";
 
@@ -24,6 +24,7 @@ export function useRealtimeMessages(
   groupId: string,
   handlers: {
     onMessage: (message: ServerMessage) => void;
+    onJob?: (job: ClientJob) => void;
     onStatus?: (status: RealtimeStatus) => void;
   },
 ) {
@@ -62,6 +63,21 @@ export function useRealtimeMessages(
               created_at: row.created_at,
               sender_name: null,
             });
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "ai_jobs", filter: `group_id=eq.${groupId}` },
+          (payload) => {
+            const row = payload.new as Partial<ClientJob> | undefined;
+            if (row?.id && row.trigger_message_id && row.status) {
+              ref.current.onJob?.({
+                id: row.id,
+                trigger_message_id: row.trigger_message_id,
+                status: row.status,
+                error_category: row.error_category ?? null,
+              });
+            }
           },
         )
         .subscribe((status) => {

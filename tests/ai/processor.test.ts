@@ -101,10 +101,34 @@ describe("processing", () => {
     expect(m.calls).toHaveLength(1);
   });
 
+  it("stress: 20 messages from two people arriving while three workers run: 20 jobs done, 20 replies, never two at once", async () => {
+    const g = (await a.client.rpc("create_group", { p_name: "Stress" })).data as string;
+    await admin.from("group_members").insert({ group_id: g, user_id: b.id, role: "member" });
+    const m = mockModel({ delayMs: 40 });
+    const workers = Array.from({ length: 12 }, async (_, i) => {
+      await new Promise((r) => setTimeout(r, i * 150));
+      return processGroup(g, { db: admin, generate: m.generate });
+    });
+    const senders = Array.from({ length: 20 }, async (_, i) => {
+      await new Promise((r) => setTimeout(r, i * 60));
+      const u = i % 2 ? b : a;
+      await u.client.from("messages").insert({ group_id: g, sender_id: u.id, type: "user", content: `s${i + 1}` });
+    });
+    await Promise.all([...workers, ...senders]);
+    await processGroup(g, { db: admin, generate: m.generate }); // sweep anything that arrived after the last worker
+    const all = await jobs(g);
+    expect(all).toHaveLength(20);
+    expect(all.every((j) => j.status === "succeeded")).toBe(true);
+    expect(await replies(g)).toHaveLength(20);
+    expect(new Set((await replies(g)).map((r) => r.job_id)).size).toBe(20);
+    expect(m.maxRunning()).toBe(1);
+    expect(m.calls).toHaveLength(20);
+  });
+
   it("T4.4-5 different groups progress in parallel", async () => {
     const g1 = await room(["g1"]);
     const g2 = await room(["g2"]);
-    const m = mockModel({ delayMs: 200 });
+    const m = mockModel({ delayMs: 900 });
     await Promise.all([processGroup(g1.g, { db: admin, generate: m.generate }), processGroup(g2.g, { db: admin, generate: m.generate })]);
     expect(m.maxRunning()).toBe(2);
     expect(await replies(g1.g)).toHaveLength(1);
