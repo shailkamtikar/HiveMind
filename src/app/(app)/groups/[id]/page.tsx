@@ -9,6 +9,7 @@ import { isUuid } from "@/lib/validation/group";
 import { Chat } from "@/components/chat/Chat";
 import { Avatar } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
+import { BlurText } from "@/components/fx/BlurText";
 
 export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
   const { id } = await params;
@@ -46,7 +47,9 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
         <Link href="/groups" className="font-mono text-[11px] uppercase tracking-wide text-muted hover:text-foreground">
           ← All conversations
         </Link>
-        <h1 className="mt-2 font-display text-4xl">{group.name}</h1>
+        <h1 className="mt-2 font-display text-5xl leading-none">
+          <BlurText text={group.name} />
+        </h1>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[1fr_16rem]">
