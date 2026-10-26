@@ -5,6 +5,14 @@ Single source of truth for tokens, components and motion. Update this file when 
 ## Direction
 Warm, calm and editorial rather than the stock "AI" look (no purple gradients, no glowing blobs, no emoji icons). A warm off-white / near-black neutral base with one honey-amber accent (the "hive"). A serif display face for headlines gives character; the UI itself stays quiet and legible.
 
+### Reference-driven rules (from `references/README.md`)
+1. One accent per screen, used for a single phrase, button or bar; everything else stays neutral.
+2. Headlines carry the personality: large, tight line height, one emphasized phrase (accent color or italic serif).
+3. Small uppercase mono "eyebrow" labels above headings and on metadata (timestamps, counts, roles); hairline `border` rules between sections.
+4. Show the real product (the actual chat UI) in the landing hero rather than decorative graphics.
+5. No gradient blobs, glass effects, emoji icons or three identical feature cards.
+6. Open decision for 6.1: the honey-amber accent stays unless you prefer a stronger vermilion/red like the references; changing it only means editing `--accent` tokens.
+
 ## Tokens (defined in `src/app/globals.css`)
 | Token | Light | Dark | Use |
 |---|---|---|---|
