@@ -63,6 +63,17 @@ body {
   outline-offset: 2px;
 }
 
+/* New messages ease in. Short, and switched off by the reduced-motion rule below. */
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.message-in {
+  animation: message-in 160ms ease-out;
+}
+
 dialog::backdrop {
   background: rgb(0 0 0 / 0.55);
 }
