@@ -32,6 +32,7 @@ export function api(cookie?: string) {
   const headers = (extra: Record<string, string> = {}) => ({ ...(cookie ? { cookie } : {}), ...extra });
   return {
     get: (path: string) => fetch(`${BASE}${path}`, { headers: headers(), redirect: "manual" }),
+    delete: (path: string) => fetch(`${BASE}${path}`, { method: "DELETE", headers: headers(), redirect: "manual" }),
     post: (path: string, body: unknown) =>
       fetch(`${BASE}${path}`, {
         method: "POST",
