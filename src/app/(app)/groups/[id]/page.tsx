@@ -10,6 +10,7 @@ import { Chat } from "@/components/chat/Chat";
 import { Avatar } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
 import { BlurText } from "@/components/fx/BlurText";
+import { ShareDialog } from "@/components/share/ShareDialog";
 
 export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
   const { id } = await params;
@@ -23,7 +24,7 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
   const supabase = await createClient();
   const { data: group } = await supabase
     .from("groups")
-    .select("id, name, member_limit")
+    .select("id, name, member_limit, owner_id")
     .eq("id", id)
     .maybeSingle();
   if (!group) notFound();
@@ -47,9 +48,19 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
         <Link href="/groups" className="font-mono text-[11px] uppercase tracking-wide text-muted hover:text-foreground">
           ← All conversations
         </Link>
-        <h1 className="mt-2 font-display text-5xl leading-none">
-          <BlurText text={group.name} />
-        </h1>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-display text-5xl leading-none">
+            <BlurText text={group.name} />
+          </h1>
+          {group.owner_id === user.id && (
+            <ShareDialog
+              groupId={group.id}
+              groupName={group.name}
+              memberCount={members?.length ?? 0}
+              memberLimit={group.member_limit}
+            />
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[1fr_16rem]">
