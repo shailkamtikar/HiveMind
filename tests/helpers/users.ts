@@ -39,6 +39,17 @@ export async function createTestUser(label = "user"): Promise<TestUser> {
   return { id: data.user.id, email, client };
 }
 
+/** For users created through the real sign-up form (not createTestUser). Test emails only. */
+export async function deleteUserByEmail(email: string) {
+  if (!/^hm-test-.*@example\.com$/.test(email)) throw new Error("refusing to delete a non-test account");
+  for (let page = 1; page <= 20; page++) {
+    const { data } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    const hit = data?.users.find((u) => u.email === email);
+    if (hit) return void (await admin.auth.admin.deleteUser(hit.id));
+    if (!data || data.users.length < 200) return;
+  }
+}
+
 /** Deletes every user created by createTestUser (cascades to profiles, groups, memberships). */
 export async function cleanupTestUsers() {
   while (created.length) {
