@@ -1,27 +1,10 @@
-import { after, NextResponse, type NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
 import { replyToMessage } from "@/lib/ai/reply";
-import { createClient } from "@/lib/supabase/server";
+import { authorizeGroup as authorize, json, notFound } from "@/lib/api/group";
 import { getConfig } from "@/lib/config";
-import { isUuid } from "@/lib/validation/group";
 import { historyQuerySchema, sendMessageSchema } from "@/lib/validation/message";
 import { fetchMessagesPage } from "@/lib/chat/queries";
 import type { ServerMessage } from "@/lib/chat/types";
-
-const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
-const notFound = () => json({ error: "Conversation not found" }, 404);
-
-async function authorize(groupId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: json({ error: "Unauthorized" }, 401) } as const;
-  if (!isUuid(groupId)) return { error: notFound() } as const;
-  // RLS only returns groups the caller belongs to, so non-members and unknown ids look the same.
-  const { data: group } = await supabase.from("groups").select("id").eq("id", groupId).maybeSingle();
-  if (!group) return { error: notFound() } as const;
-  return { supabase, user } as const;
-}
 
 export async function GET(request: NextRequest, ctx: RouteContext<"/api/groups/[id]/messages">) {
   const { id } = await ctx.params;
