@@ -1,54 +1,89 @@
 import "server-only";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { AiError, toAiError, type AiErrorCategory } from "./errors";
+import { aiMode } from "./mode";
+import { SYSTEM_PROMPT, type AiTurn } from "./prompt";
 
-export type AiTurn = { role: "user" | "model"; text: string };
+export const MAX_REPLY_CHARS = 4000;
+const DEFAULT_TIMEOUT_MS = 25_000;
 
-const SYSTEM_PROMPT = [
-  "You are HiveMind, a friendly assistant in a group chat shared by a few friends.",
-  "Each user message starts with the sender's name followed by a colon; use names naturally.",
-  "Keep replies concise and conversational. Do not prefix your reply with your own name.",
-  "Write plain text only: no Markdown symbols such as asterisks, pound signs or backticks. Use short lines or '1.' numbering for lists.",
-].join(" ");
+type Options = { timeoutMs?: number; signal?: AbortSignal };
 
-/** Merges consecutive turns from the same role, which Gemini expects to alternate. */
-export function toContents(turns: AiTurn[]) {
-  const out: { role: AiTurn["role"]; parts: { text: string }[] }[] = [];
-  for (const t of turns) {
-    const last = out[out.length - 1];
-    if (last && last.role === t.role) last.parts[0].text += `\n${t.text}`;
-    else out.push({ role: t.role, parts: [{ text: t.text }] });
+/** Deterministic stand-in for Gemini, used only when AI_MODE=mock (never in production). */
+async function mockReply(turns: AiTurn[], signal: AbortSignal): Promise<string> {
+  const last = [...turns].reverse().find((t) => t.role === "user")?.text ?? "";
+  const body = last.replace(/^[^:]*:\s*/, "");
+  const failure = /\[fail:(quota|timeout|provider|safety|internal)\]/.exec(body);
+  const delay = Number(process.env.AI_MOCK_DELAY_MS ?? 0);
+  if (delay > 0) {
+    await new Promise<void>((resolve, reject) => {
+      const t = setTimeout(resolve, delay);
+      signal.addEventListener("abort", () => {
+        clearTimeout(t);
+        reject(new AiError("timeout"));
+      });
+    });
   }
-  return out;
+  if (failure) throw new AiError(failure[1] as AiErrorCategory);
+  return `Mock reply to: ${body}`;
 }
 
-const TRANSIENT = new Set([429, 500, 503]);
+/**
+ * Asks Gemini for the next reply. Every failure is thrown as an AiError with a closed category.
+ * Server-only: the API key never reaches the browser bundle.
+ */
+export async function generateReply(turns: AiTurn[], opts: Options = {}): Promise<string> {
+  const signal = opts.signal ?? AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
-export async function generateReply(turns: AiTurn[], signal?: AbortSignal): Promise<string> {
-  const key = process.env.GEMINI_API_KEY;
+  if (aiMode() === "mock") return clamp(await mockReply(turns, signal));
+
+  const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL;
-  if (!key || !model) throw new Error("Gemini is not configured");
+  if (!apiKey || !model) throw new AiError("internal", "Gemini is not configured");
+  if (!turns.length) throw new AiError("internal", "nothing to reply to");
 
-  const request = () =>
-    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: toContents(turns),
-        // Minimal thinking keeps chat replies to a second or two; the default can take 30s+.
-        generationConfig: { maxOutputTokens: 800, temperature: 0.8, thinkingConfig: { thinkingLevel: "minimal" } },
-      }),
-      signal: signal ?? AbortSignal.timeout(25_000),
+  const ai = new GoogleGenAI({ apiKey });
+  const call = () =>
+    ai.models.generateContent({
+      model,
+      contents: turns.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        maxOutputTokens: 800,
+        temperature: 0.8,
+        // Minimal thinking keeps replies to a second or two; the default can take 30 s or more.
+        thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+        abortSignal: signal,
+      },
     });
 
-  let res = await request();
-  if (TRANSIENT.has(res.status)) {
-    // One quick retry: "high demand" spikes from the provider are usually brief.
-    await new Promise((r) => setTimeout(r, 1000));
-    res = await request();
+  let response;
+  try {
+    try {
+      response = await call();
+    } catch (e) {
+      // One immediate retry for the provider's brief "high demand" 503s; quota and timeouts never retry.
+      const status = (e as { status?: unknown } | null)?.status;
+      if (typeof status !== "number" || status < 500 || status === 504 || signal.aborted) throw e;
+      response = await call();
+    }
+  } catch (e) {
+    throw toAiError(e);
   }
-  if (!res.ok) throw new Error(`Gemini responded ${res.status}`);
-  const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-  const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
-  if (!text) throw new Error("Gemini returned no text");
-  return text;
+
+  if (response.promptFeedback?.blockReason) throw new AiError("safety");
+  const candidate = response.candidates?.[0];
+  if (candidate?.finishReason && /SAFETY|PROHIBITED|BLOCKLIST|SPII|RECITATION/i.test(String(candidate.finishReason))) {
+    throw new AiError("safety");
+  }
+  const text = (candidate?.content?.parts ?? [])
+    .map((p) => p.text ?? "")
+    .join("")
+    .trim();
+  if (!text) throw new AiError("provider", "empty reply");
+  return clamp(text);
+}
+
+function clamp(text: string) {
+  return text.length > MAX_REPLY_CHARS ? text.slice(0, MAX_REPLY_CHARS - 1) + "…" : text;
 }
