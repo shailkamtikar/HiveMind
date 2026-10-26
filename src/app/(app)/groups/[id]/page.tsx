@@ -57,6 +57,7 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
           initialMessages={history.messages}
           initialHasMore={history.hasMore}
           maxLength={getConfig().maxMessageLength}
+          memberNames={Object.fromEntries(nameOf)}
         />
         <Card className="h-fit">
           <h2 className="font-mono text-[11px] uppercase tracking-wide text-muted">

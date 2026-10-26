@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { mergeMessages, sortMessages, toChatMessage } from "@/lib/chat/messages";
 import type { ChatMessage, ServerMessage } from "@/lib/chat/types";
 import { Composer } from "./Composer";
 import { MessageItem } from "./MessageItem";
+import { useRealtimeMessages } from "./useRealtimeMessages";
 
 type Props = {
   groupId: string;
@@ -13,9 +15,19 @@ type Props = {
   initialMessages: ServerMessage[];
   initialHasMore: boolean;
   maxLength: number;
+  /** user id -> display name for current members */
+  memberNames: Record<string, string>;
 };
 
-export function Chat({ groupId, currentUserId, currentUserName, initialMessages, initialHasMore, maxLength }: Props) {
+export function Chat({
+  groupId,
+  currentUserId,
+  currentUserName,
+  initialMessages,
+  initialHasMore,
+  maxLength,
+  memberNames,
+}: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => initialMessages.map(toChatMessage));
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -23,6 +35,9 @@ export function Chat({ groupId, currentUserId, currentUserName, initialMessages,
 
   // Messages present at page load do not animate; only later arrivals do.
   const [initialIds] = useState(() => new Set(initialMessages.map((m) => m.id)));
+  const names = useRef(new Map(Object.entries({ ...memberNames, [currentUserId]: currentUserName })));
+  // Sends go out one at a time so a member's own messages are stored in the order they typed them.
+  const sendQueue = useRef<Promise<void>>(Promise.resolve());
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
   const prevHeight = useRef<number | null>(null);
@@ -43,6 +58,23 @@ export function Chat({ groupId, currentUserId, currentUserName, initialMessages,
     const el = listRef.current;
     if (el) stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   }
+
+  // Live delivery. Events can arrive twice or out of order; mergeMessages dedupes by id and sorts by seq.
+  const resolveName = useCallback(async (userId: string) => {
+    const { data } = await createClient().from("profiles").select("display_name").eq("id", userId).maybeSingle();
+    const name = data?.display_name;
+    if (!name) return;
+    names.current.set(userId, name);
+    setMessages((cur) => cur.map((m) => (m.sender_id === userId && !m.sender_name ? { ...m, sender_name: name } : m)));
+  }, []);
+
+  useRealtimeMessages(groupId, {
+    onMessage: (m) => {
+      const known = m.sender_id ? (names.current.get(m.sender_id) ?? null) : null;
+      setMessages((cur) => mergeMessages(cur, [{ ...m, sender_name: known }]));
+      if (m.sender_id && !known) void resolveName(m.sender_id);
+    },
+  });
 
   const post = useCallback(
     async (id: string, content: string) => {
@@ -77,6 +109,13 @@ export function Chat({ groupId, currentUserId, currentUserName, initialMessages,
     [groupId],
   );
 
+  const enqueue = useCallback(
+    (id: string, content: string) => {
+      sendQueue.current = sendQueue.current.then(() => post(id, content));
+    },
+    [post],
+  );
+
   const send = useCallback(
     (content: string) => {
       const id = crypto.randomUUID();
@@ -97,9 +136,9 @@ export function Chat({ groupId, currentUserId, currentUserName, initialMessages,
           },
         ]),
       );
-      void post(id, content);
+      enqueue(id, content);
     },
-    [groupId, currentUserId, currentUserName, post],
+    [groupId, currentUserId, currentUserName, enqueue],
   );
 
   function retry(id: string) {
@@ -109,7 +148,7 @@ export function Chat({ groupId, currentUserId, currentUserName, initialMessages,
       cur.map((m) => (m.id === id ? { ...m, status: "sending" as const, errorText: undefined } : m)),
     );
     // The same id is reused, so a retry can never create a second copy.
-    void post(id, failed.content);
+    enqueue(id, failed.content);
   }
 
   async function loadOlder() {
