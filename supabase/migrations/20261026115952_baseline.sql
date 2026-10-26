@@ -1,0 +1,1 @@
+-- Baseline: intentionally empty. Confirms the migration workflow.
