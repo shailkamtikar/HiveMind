@@ -2,7 +2,13 @@ import { defineConfig } from "vitest/config";
 import path from "node:path";
 
 export default defineConfig({
-  resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "src"),
+      // Outside Next, the server-only guard would throw on import.
+      "server-only": path.resolve(import.meta.dirname, "node_modules/server-only/empty.js"),
+    },
+  },
   test: {
     include: ["src/**/*.test.ts"],
   },

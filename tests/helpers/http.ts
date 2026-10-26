@@ -1,6 +1,6 @@
 import { admin, type TestUser } from "./users";
 
-export const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3000";
+export const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3100";
 
 /** Builds a Cookie header from Set-Cookie headers (honours cleared cookies). */
 export function cookieHeader(setCookies: string[]) {

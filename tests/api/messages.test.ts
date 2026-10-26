@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { admin, cleanupTestUsers, createTestUser, type TestUser } from "../helpers/users";
 import { api, sessionCookie } from "../helpers/http";
 
-// Needs the app running on http://localhost:3000 (npm run dev).
+// Needs the app running on http://localhost:3100 (npm run dev:test).
 let a: TestUser;
 let b: TestUser;
 let g1: string; // A's group

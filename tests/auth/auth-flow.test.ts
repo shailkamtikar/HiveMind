@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { admin, cleanupTestUsers, createTestUser } from "../helpers/users";
 
-// Needs the app running: `npm run dev` (default http://localhost:3000).
-const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3000";
+// Needs the app running: `npm run dev:test` (default http://localhost:3100).
+const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3100";
 
 const noFollow = { redirect: "manual" as const };
 

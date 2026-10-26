@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
+import { replyToMessage } from "@/lib/ai/reply";
 import { createClient } from "@/lib/supabase/server";
 import { getConfig } from "@/lib/config";
 import { isUuid } from "@/lib/validation/group";
@@ -84,6 +85,9 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/groups/
     if (error.code === "42501") return notFound();
     return json({ error: "Could not send message" }, 500);
   }
+
+  // The AI answers every new message once, after the sender already has their response.
+  if (process.env.AI_REPLIES !== "off") after(() => replyToMessage(id, data.seq));
 
   const { data: profile } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
   return json({ message: withName(data, profile?.display_name ?? null) }, 201);

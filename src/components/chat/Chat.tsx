@@ -49,6 +49,19 @@ export function Chat({
 
   // Messages present at page load do not animate; only later arrivals do.
   const [initialIds] = useState(() => new Set(initialMessages.map((m) => m.id)));
+  // "Thinking" while the newest message is one a member just sent and no reply has landed (gives up after 45s).
+  const lastMessage = messages[messages.length - 1];
+  const waitingId =
+    lastMessage && lastMessage.type === "user" && lastMessage.seq !== null && !initialIds.has(lastMessage.id)
+      ? lastMessage.id
+      : null;
+  const [staleId, setStaleId] = useState<string | null>(null);
+  const thinking = waitingId !== null && waitingId !== staleId;
+  useEffect(() => {
+    if (!waitingId) return;
+    const timer = setTimeout(() => setStaleId(waitingId), 45_000);
+    return () => clearTimeout(timer);
+  }, [waitingId]);
   const names = useRef(new Map(Object.entries({ ...memberNames, [currentUserId]: currentUserName })));
   // Sends go out one at a time so a member's own messages are stored in the order they typed them.
   const sendQueue = useRef<Promise<void>>(Promise.resolve());
@@ -66,7 +79,7 @@ export function Chat({
     } else if (stickToBottom.current) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, thinking]);
 
   function onScroll() {
     const el = listRef.current;
@@ -279,6 +292,21 @@ export function Chat({
                 onRetry={retry}
               />
             ))}
+            {thinking && (
+              <li className="message-in flex items-center gap-3 py-1 pl-3" data-testid="ai-thinking">
+                <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground font-display text-lg leading-none text-background">
+                  H
+                </span>
+                <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wide text-muted">
+                  <span className="shiny">HiveMind is thinking</span>
+                  <span aria-hidden="true" className="flex gap-1">
+                    <i className="thinking-dot" />
+                    <i className="thinking-dot" style={{ animationDelay: "150ms" }} />
+                    <i className="thinking-dot" style={{ animationDelay: "300ms" }} />
+                  </span>
+                </span>
+              </li>
+            )}
           </ul>
         )}
       </div>

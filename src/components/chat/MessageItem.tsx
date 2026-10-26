@@ -1,4 +1,5 @@
 import { Avatar } from "@/components/ui/Avatar";
+import { WordReveal } from "@/components/fx/WordReveal";
 import { cn } from "@/lib/cn";
 import type { ChatMessage } from "@/lib/chat/types";
 
@@ -18,18 +19,37 @@ export function MessageItem({
   animate?: boolean;
   onRetry?: (id: string) => void;
 }) {
-  const name = message.sender_name || (message.sender_id ? "Member" : "Former member");
+  if (message.type === "system") {
+    return (
+      <li className={cn("py-1 text-center", animate && "message-in")} data-testid="message" data-type="system" data-status={message.status}>
+        <p className="font-mono text-[11px] uppercase tracking-wide text-muted">{message.content}</p>
+      </li>
+    );
+  }
+  const isAi = message.type === "assistant";
+  const name = isAi ? "HiveMind" : message.sender_name || (message.sender_id ? "Member" : "Former member");
   return (
     <li
       className={cn(
         "flex gap-3 border-l-2 py-1 pl-3",
         animate && "message-in",
-        isOwn ? "border-accent" : "border-transparent",
+        animate && isAi && "arrive",
+        isOwn ? "border-accent" : isAi ? "border-foreground" : "border-transparent",
       )}
       data-testid="message"
+      data-type={message.type}
       data-status={message.status}
     >
-      <Avatar name={name} className="mt-0.5 shrink-0" />
+      {isAi ? (
+        <span
+          aria-hidden="true"
+          className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground font-display text-lg leading-none text-background"
+        >
+          H
+        </span>
+      ) : (
+        <Avatar name={name} className="mt-0.5 shrink-0" />
+      )}
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline gap-2 font-mono text-[11px] uppercase tracking-wide text-muted">
           <span className="text-foreground">{isOwn ? "You" : name}</span>
@@ -40,7 +60,7 @@ export function MessageItem({
         </p>
         {/* Plain text only: React escapes it, and whitespace/newlines are preserved. */}
         <p className={cn("mt-1 whitespace-pre-wrap break-words text-[15px] leading-relaxed", message.status !== "sent" && "text-muted")}>
-          {message.content}
+          {animate && isAi ? <WordReveal text={message.content} /> : message.content}
         </p>
         {message.status === "failed" && (
           <p role="alert" className="mt-1 flex items-center gap-3 text-sm text-danger">
