@@ -1,26 +1,79 @@
 @import "tailwindcss";
 
+/* Design tokens. Components use these names only; no hard-coded colors elsewhere. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #faf7f2;
+  --surface: #ffffff;
+  --surface-2: #f2ede4;
+  --border: #ddd5c6;
+  --foreground: #1c1915;
+  --muted: #655e52;
+  --accent: #f2b441;
+  --accent-foreground: #1a1304;
+  --accent-text: #8a5a00;
+  --danger: #b42318;
+  --success: #067647;
+  --ring: #b57a06;
+  --radius: 0.75rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0e0d0b;
+    --surface: #171512;
+    --surface-2: #1f1c18;
+    --border: #2f2a24;
+    --foreground: #f3efe8;
+    --muted: #a39b8c;
+    --accent: #f2b441;
+    --accent-foreground: #1a1304;
+    --accent-text: #f2b441;
+    --danger: #f97066;
+    --success: #47cd89;
+    --ring: #f2b441;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-text: var(--accent-text);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-sans-ui);
+  --font-display: var(--font-display-serif);
+  --font-mono: var(--font-mono-ui);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans-ui), system-ui, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
