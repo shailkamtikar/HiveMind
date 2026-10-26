@@ -23,6 +23,8 @@ const schema = z.object({
   MAX_MESSAGE_LENGTH: intInRange("MAX_MESSAGE_LENGTH", 1000, 1, 4000),
   AI_CONTEXT_MESSAGES: intInRange("AI_CONTEXT_MESSAGES", 20, 1, 100),
   INVITE_EXPIRY_DAYS: intInRange("INVITE_EXPIRY_DAYS", 3, 1, 30),
+  MESSAGES_PER_MINUTE: intInRange("MESSAGES_PER_MINUTE", 20, 1, 1000),
+  AI_CALLS_PER_MINUTE: intInRange("AI_CALLS_PER_MINUTE", 6, 1, 1000),
 });
 
 export type AppConfig = {
@@ -30,6 +32,8 @@ export type AppConfig = {
   maxMessageLength: number;
   aiContextMessages: number;
   inviteExpiryDays: number;
+  messagesPerMinute: number;
+  aiCallsPerMinute: number;
 };
 
 export function getConfig(env: Record<string, string | undefined> = process.env): AppConfig {
@@ -46,5 +50,7 @@ export function getConfig(env: Record<string, string | undefined> = process.env)
     maxMessageLength: c.MAX_MESSAGE_LENGTH,
     aiContextMessages: c.AI_CONTEXT_MESSAGES,
     inviteExpiryDays: c.INVITE_EXPIRY_DAYS,
+    messagesPerMinute: c.MESSAGES_PER_MINUTE,
+    aiCallsPerMinute: c.AI_CALLS_PER_MINUTE,
   };
 }
