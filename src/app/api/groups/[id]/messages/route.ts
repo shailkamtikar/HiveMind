@@ -1,10 +1,13 @@
 import { after, type NextRequest } from "next/server";
-import { replyToMessage } from "@/lib/ai/reply";
+import { processGroup } from "@/lib/ai/processor";
 import { authorizeGroup as authorize, json, notFound } from "@/lib/api/group";
 import { getConfig } from "@/lib/config";
 import { historyQuerySchema, sendMessageSchema } from "@/lib/validation/message";
 import { fetchMessagesPage } from "@/lib/chat/queries";
 import type { ServerMessage } from "@/lib/chat/types";
+
+// The reply is produced after the response is sent, within this function's lifetime.
+export const maxDuration = 120;
 
 export async function GET(request: NextRequest, ctx: RouteContext<"/api/groups/[id]/messages">) {
   const { id } = await ctx.params;
@@ -69,8 +72,8 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/groups/
     return json({ error: "Could not send message" }, 500);
   }
 
-  // The AI answers every new message once, after the sender already has their response.
-  if (process.env.AI_REPLIES !== "off") after(() => replyToMessage(id, data.seq));
+  // The database already queued a job for this message; start working on it once the sender has their response.
+  after(() => processGroup(id).catch(() => undefined));
 
   const { data: profile } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
   return json({ message: withName(data, profile?.display_name ?? null) }, 201);
