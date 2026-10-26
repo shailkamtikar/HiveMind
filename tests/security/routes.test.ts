@@ -83,7 +83,8 @@ describe("T5.4-6 security headers on a running app", () => {
       // Frame blocking and the CSP are production-only (tests/e2e/csp.spec.ts checks them on a production build).
       const frame = res.headers.get("x-frame-options");
       if (frame) expect(frame).toBe("DENY");
-      expect(res.headers.get("permissions-policy")).toContain("camera=()");
+      const pp = res.headers.get("permissions-policy");
+      if (pp) expect(pp).toContain("camera=()");
       // The CSP is applied to production builds only (see tests/e2e/csp.spec.ts); a dev server sends none.
       const csp = res.headers.get("content-security-policy");
       if (csp) {

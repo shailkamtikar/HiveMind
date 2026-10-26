@@ -35,13 +35,14 @@ describe("securityHeaders", () => {
     expect(names(false)).toEqual(
       expect.arrayContaining(["Content-Security-Policy", "X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "Permissions-Policy"]),
     );
-    expect(names(true)).toEqual(expect.arrayContaining(["X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy"]));
+    expect(names(true)).toEqual(expect.arrayContaining(["X-Content-Type-Options", "Referrer-Policy"]));
   });
   it("applies the CSP and frame blocking only to production builds", () => {
     expect(names(false)).toContain("Content-Security-Policy");
     expect(names(true)).not.toContain("Content-Security-Policy");
     expect(names(false)).toContain("X-Frame-Options");
     expect(names(true)).not.toContain("X-Frame-Options");
+    expect(names(true)).not.toContain("Permissions-Policy");
   });
   it("adds HSTS only outside development", () => {
     expect(names(false)).toContain("Strict-Transport-Security");

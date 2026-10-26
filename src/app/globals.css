@@ -216,3 +216,20 @@ a:hover > .logo-mark, a:hover .logo-mark { transform: rotate(60deg); }
   from { background-color: color-mix(in oklab, var(--accent) 22%, transparent); }
 }
 .arrive { animation: arrive 1600ms ease-out; border-radius: 0.5rem; }
+
+/* Marketing pages: GSAP reveals and Lenis smooth scroll. Only active once the libraries have loaded
+   (the motion-ready class), and never for visitors who prefer reduced motion. */
+html.motion-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+}
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}

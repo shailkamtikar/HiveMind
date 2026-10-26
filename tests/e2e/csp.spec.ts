@@ -57,5 +57,42 @@ test("pages cannot be framed and send nosniff", async ({ request }) => {
   const res = await request.get("/login");
   expect(res.headers()["x-frame-options"]).toBe("DENY");
   expect(res.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(res.headers()["permissions-policy"]).toContain("camera=()");
   expect(res.headers()["referrer-policy"]).toBe("no-referrer");
+});
+
+test("T6.1-9 GSAP and Lenis are loaded on the landing page and nowhere in the chat", async ({ page }) => {
+  const scripts: { url: string; body: string }[] = [];
+  page.on("response", async (r) => {
+    if (r.request().resourceType() === "script") scripts.push({ url: r.url(), body: await r.text().catch(() => "") });
+  });
+  const has = () => ({
+    gsap: scripts.some((s) => /GreenSock|gsap\.registerPlugin|ScrollTrigger/.test(s.body)),
+    lenis: scripts.some((s) => /lenis-smooth|lenis-stopped/.test(s.body)),
+  });
+
+  await page.goto("/");
+  await expect.poll(() => has().gsap && has().lenis, { timeout: 15_000 }).toBe(true); // the check can tell them apart
+
+  scripts.length = 0;
+  const newEmail = `hm-test-scope-${randomBytes(4).toString("hex")}@example.com`;
+  try {
+    await page.goto("/login?mode=signup");
+    await page.getByLabel("Your name").fill("Scope Check");
+    await page.getByLabel("Email").fill(newEmail);
+    await page.getByLabel("Password").fill("correct-horse-9");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await page.waitForURL("**/groups");
+    await page.getByLabel("New conversation").fill("Scope room");
+    await page.getByRole("button", { name: "Start conversation" }).click();
+    await page.waitForURL(/\/groups\/[0-9a-f-]{36}$/);
+    await expect(page.locator("#composer")).toBeVisible();
+    await page.waitForTimeout(1500);
+    expect(scripts.length).toBeGreaterThan(0);
+    expect(has()).toEqual({ gsap: false, lenis: false });
+    // Native scrolling in the chat: no Lenis class on the document.
+    expect(await page.evaluate(() => document.documentElement.classList.contains("lenis"))).toBe(false);
+  } finally {
+    await deleteUserByEmail(newEmail);
+  }
 });
