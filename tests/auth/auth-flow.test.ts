@@ -85,7 +85,7 @@ describe("callback", () => {
     // Session works for pages and API.
     const page = await fetch(`${BASE}/groups`, { ...noFollow, headers: { cookie } });
     expect(page.status).toBe(200);
-    expect(await page.text()).toContain("You are signed in");
+    expect(await page.text()).toContain("Your conversations");
     const me = await fetch(`${BASE}/api/me`, { headers: { cookie } });
     expect(me.status).toBe(200);
     expect((await me.json()).id).toBe(user.id);

@@ -486,11 +486,11 @@ Establish authenticated identity for all later server-side checks.
 - [ ] Sign-in page with email field and "check your email" state.
 - [ ] `/auth/callback` route to exchange the code for a session.
 - [ ] Sign-out action.
-- [ ] Middleware refreshing the session and redirecting signed-out users from protected routes.
+- [ ] Proxy (`src/proxy.ts`; Next.js 16 renamed middleware to proxy) refreshing the session and redirecting signed-out users from protected routes.
 - [ ] Preserve a `next` path (needed later for invite links) — validated to be a relative path.
 
 ### 4. Files / Modules Affected
-`src/app/login/page.tsx`, `src/app/auth/callback/route.ts`, `src/middleware.ts`, `src/lib/supabase/middleware.ts`, `src/app/(app)/layout.tsx`, `src/lib/auth/safeNext.ts` + test.
+`src/app/login/page.tsx`, `src/app/auth/callback/route.ts`, `src/proxy.ts`, `src/lib/supabase/proxy.ts`, `src/app/(app)/layout.tsx`, `src/lib/auth/safeNext.ts` + test.
 
 ### 5. Implementation Guidance
 - Magic link first, per your choice; Google can be added later by enabling a provider and adding one button.
@@ -508,7 +508,7 @@ Establish authenticated identity for all later server-side checks.
 | T1.2-5 | Expired/reused link | used link | open link again | friendly error with "request a new link" | ☐ |
 | T1.2-6 | Open redirect | — | `/login?next=https://evil.com` and `//evil.com` | after sign-in goes to `/groups` | ☐ |
 | T1.2-7 | `safeNext` unit | — | run unit tests for 8 inputs | pass | ☐ |
-| T1.2-8 | Unauthorized API | no session | `curl /api/health-auth` (a stub protected route) | HTTP 401 | ☐ |
+| T1.2-8 | Unauthorized API | no session | `curl /api/me` (a stub protected route) | HTTP 401 | ☐ |
 | T1.2-9 | Regression | — | `npm test && npm run test:db && npm run build` | pass | ☐ |
 
 ### 7. Verification Checklist
@@ -523,7 +523,7 @@ Magic-link flow works, protected routes enforce auth, no open redirect.
 ```bash
 git status
 git add .
-git commit -m "feat(auth): magic link sign-in, callback, middleware and sign-out"
+git commit -m "feat(auth): magic link sign-in, callback, proxy route protection and sign-out"
 git push origin phase-1-access
 ```
 
@@ -1886,3 +1886,17 @@ git push origin main --tags
 - [ ] No commit contains a `Co-Authored-By` trailer: `git log --format=%B | grep -i "co-authored-by"` prints nothing.
 - [ ] Contributor list shows only the identities you intend: `git shortlog -sne`.
 - [ ] No `node_modules/`, `.next/`, test reports or logs committed.
+
+---
+
+# Implementation log: deviations from this playbook (Phases 0 and 1)
+
+Recorded while building. These supersede the milestone text above where they differ.
+
+1. **Next.js 16:** `middleware` is now `proxy` (`src/proxy.ts`). The scaffold has Cache Components enabled, so request-time reads (cookies, session, `searchParams`) must sit inside `<Suspense>` and call `await connection()` before reading the session (see `src/lib/auth/getUser.ts`, `src/app/(app)/layout.tsx`). Pages that stream return HTTP 200 even when they render a "not found" screen, so tests assert on visible content, not the status code.
+2. **Test credentials:** integration tests read `.env.local` (no separate `.env.test.local`), because there is a single dev Supabase project. Test users are created with the admin API and always deleted afterwards.
+3. **Supabase grants:** new tables in this project do not give `service_role` read/write privileges by default; the core migration grants them explicitly. Rollback scripts must drop `profiles`, then `group_members`, then `groups`, then the functions.
+4. **Auth stub route:** the protected-API test uses `/api/me`.
+5. **Milestone 0.4:** built before the references were chosen; `docs/design/references/README.md` is waiting for your 3 to 5 reference links, and the look still needs your approval on `/design` (dev only).
+6. **Magic-link email:** the end-to-end sign-in is verified with admin-generated links (no inbox needed). Sending a real email through Supabase and clicking it is a manual check for you (T1.2-1), and requires the Site URL and redirect URL set in the Supabase dashboard.
+7. **Cookies:** Supabase's SSR session cookies are not HttpOnly by design (the browser client reads them); the playbook line claiming HttpOnly cookies was wrong.
