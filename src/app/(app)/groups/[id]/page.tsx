@@ -12,6 +12,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
 import { BlurText } from "@/components/fx/BlurText";
 import { ShareDialog } from "@/components/share/ShareDialog";
+import { RemoveMemberButton } from "@/components/share/RemoveMemberButton";
 
 export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
   const { id } = await params;
@@ -96,6 +97,9 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
                   <span className="truncate">{name}</span>
                   {m.role === "owner" && (
                     <span className="ml-auto font-mono text-[11px] uppercase tracking-wide text-muted">Owner</span>
+                  )}
+                  {m.role !== "owner" && group.owner_id === user.id && (
+                    <RemoveMemberButton groupId={group.id} userId={m.user_id} name={name} />
                   )}
                 </li>
               );

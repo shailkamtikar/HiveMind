@@ -1938,6 +1938,10 @@ Recorded while building. These supersede the milestone text above where they dif
 31. **Dev log noise:** the group page logs Next's "uncached data outside Suspense" error in development (`await connection()` at page level). It predates Phase 4 and does not affect behaviour; fix it in the Phase 6 polish pass.
 32. **Privacy:** the Gemini key is on the free tier, so conversation text may be used by Google to improve its products (see `docs/decisions/0001-ai-orchestration.md`). Decide before public launch: paid tier or say so on the privacy page.
 
+## Phase 6 notes
+
+38. **Revoke versus remove.** Revoking an invitation (Milestone 3.2 rule) only stops the link; people who already joined stay. The owner reported this as a bug, and chose: keep revoke as it is and add **Remove member** (`remove_member`, `DELETE /api/groups/[id]/members/[userId]`, a Remove button in the members card). A removed person loses access at once, their messages stay, and `group_removals` stops any link created before the removal from letting them back in (a new link works). Removal and joining take the same group row lock.
+
 ## Phase 5 notes
 
 33. **5.1 Retry and cool-down.** `ai_jobs.cooldown_until`: a quota failure pauses the whole group for 60 s (`claim_next_job` hands out nothing), and a retry does not skip it. `retry_job(job_id)` (members only, row-locked) re-queues a failed job, at most 3 attempts per job; the route is `POST /api/groups/[id]/ai/retry`. The failed notice has a Retry button until the cap, then says it was retried too many times. A second retry click gets a 409 and one reply.

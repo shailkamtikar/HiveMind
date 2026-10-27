@@ -14,6 +14,7 @@
 - **Start a conversation** and talk to the AI on your own.
 - **Share it**: the owner creates an invite link (expires after 3 days, revocable, up to 5 people in total). Joining requires an account, and new members can read the whole history.
 - **Live, ordered chat**: messages reach everyone in real time and in one agreed order; a dropped connection catches up on reconnect.
+- **Owner controls**: revoke a link (stops new joins only) and remove a member (they lose access immediately; only a new link lets them back in).
 - **One AI reply per message**, answered one at a time per conversation. If the AI fails, the message shows a note with **Retry** (3 attempts at most); a quota error pauses the conversation's AI for a minute.
 
 ## How it is built

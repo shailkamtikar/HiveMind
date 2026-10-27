@@ -80,6 +80,12 @@ const cells: Cell[] = [
   { table: "ai_jobs", op: "update", allowed: [], attempt: async (c) => rows(await c.client.from("ai_jobs").update({ status: "succeeded" }).eq("group_id", c.group).select()) },
   { table: "ai_jobs", op: "delete", allowed: [], attempt: async (c) => rows(await c.client.from("ai_jobs").delete().eq("group_id", c.group).select()) },
 
+  // group_removals: server only (who the owner removed, so old links cannot bring them back)
+  { table: "group_removals", op: "select", allowed: [], attempt: async (c) => rows(await c.client.from("group_removals").select("user_id")) },
+  { table: "group_removals", op: "insert", allowed: [], attempt: async (c) => !(await c.client.from("group_removals").insert({ group_id: c.group, user_id: c.uid ?? randomUUID() })).error },
+  { table: "group_removals", op: "update", allowed: [], attempt: async (c) => rows(await c.client.from("group_removals").update({ removed_at: new Date().toISOString() }).eq("group_id", c.group).select()) },
+  { table: "group_removals", op: "delete", allowed: [], attempt: async (c) => rows(await c.client.from("group_removals").delete().eq("group_id", c.group).select()) },
+
   // rate_limits: server only
   { table: "rate_limits", op: "select", allowed: [], attempt: async (c) => rows(await c.client.from("rate_limits").select("user_id")) },
   { table: "rate_limits", op: "insert", allowed: [], attempt: async (c) => !(await c.client.from("rate_limits").insert({ user_id: c.uid ?? randomUUID(), bucket: "x", window_start: new Date().toISOString() })).error },
@@ -109,6 +115,7 @@ beforeAll(async () => {
     .insert({ group_id: group, token_hash: generateInviteToken().hash, created_by: owner.id, expires_at: "2099-01-01T00:00:00Z" })
     .select("id")
     .single();
+  await admin.from("group_removals").insert({ group_id: group, user_id: outsider.id });
   await admin.from("rate_limits").insert({ user_id: owner.id, bucket: "fixture", window_start: new Date().toISOString(), hits: 1 });
   base = { owner, member, outsider, group, message: msg!.id, invitation: inv!.id };
 });
@@ -136,7 +143,7 @@ describe("T5.4-1 authorization matrix", () => {
 
   it("covers every table in the public schema that the app uses", () => {
     const tables = new Set(cells.map((c) => c.table));
-    expect([...tables].sort()).toEqual(["ai_jobs", "group_members", "groups", "invitations", "messages", "profiles", "rate_limits"]);
+    expect([...tables].sort()).toEqual(["ai_jobs", "group_members", "group_removals", "groups", "invitations", "messages", "profiles", "rate_limits"]);
     for (const t of tables) expect(cells.filter((c) => c.table === t).map((c) => c.op).sort()).toEqual(["delete", "insert", "select", "update"]);
   });
 });

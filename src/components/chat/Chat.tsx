@@ -260,7 +260,9 @@ export function Chat({
           return;
         }
         const text =
-          res.status === 429
+          res.status === 404
+            ? "You're no longer part of this conversation."
+            : res.status === 429
             ? `You're sending messages too fast. Try again in ${Number(body.retryAfter) || 30} seconds.`
             : res.status === 400 && typeof body.error === "string"
             ? body.error

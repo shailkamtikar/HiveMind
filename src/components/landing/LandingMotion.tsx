@@ -8,7 +8,6 @@ import { useEffect } from "react";
  * Does nothing at all when the visitor prefers reduced motion: content stays visible and scrolling is native.
  *
  * Markup contract:
- *   [data-hero-word]    headline words that rise in one after another
  *   [data-reveal]       fades up when it scrolls into view (hidden by CSS until this runs)
  *   [data-preview-msg]  messages of the product preview that appear in sequence
  */
@@ -37,14 +36,6 @@ export function LandingMotion() {
       gsap.ticker.lagSmoothing(0);
 
       const ctx = gsap.context(() => {
-        gsap.from("[data-hero-word]", {
-          yPercent: 110,
-          opacity: 0,
-          duration: 0.9,
-          ease: "power3.out",
-          stagger: 0.07,
-          delay: 0.1,
-        });
         gsap.from("[data-preview-msg]", {
           y: 14,
           opacity: 0,

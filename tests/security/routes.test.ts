@@ -26,6 +26,7 @@ const routes: Array<Call & { signedOut: number; outsider: number; member: number
   { name: "GET invitations", file: "api/groups/[id]/invitations", run: (a) => a.get(url("/invitations")), signedOut: 401, outsider: 404, member: 403 },
   { name: "POST invitations", file: "api/groups/[id]/invitations", run: (a) => a.post(url("/invitations"), {}), signedOut: 401, outsider: 404, member: 403 },
   { name: "DELETE invitation", file: "api/groups/[id]/invitations/[inviteId]", run: (a) => a.delete(url(`/invitations/${randomUUID()}`)), signedOut: 401, outsider: 404, member: 403 },
+  { name: "DELETE member", file: "api/groups/[id]/members/[userId]", run: (a) => a.delete(url(`/members/${randomUUID()}`)), signedOut: 401, outsider: 404, member: 403 },
   { name: "POST ai/process", file: "api/groups/[id]/ai/process", run: (a) => a.post(url("/ai/process"), {}), signedOut: 401, outsider: 404, member: 200 },
   { name: "POST ai/retry", file: "api/groups/[id]/ai/retry", run: (a) => a.post(url("/ai/retry"), { jobId }), signedOut: 401, outsider: 404, member: 409 },
   { name: "POST invitations/redeem", file: "api/invitations/redeem", run: (a) => a.post("/api/invitations/redeem", { token: "x".repeat(43) }), signedOut: 401, outsider: 200, member: 200 },

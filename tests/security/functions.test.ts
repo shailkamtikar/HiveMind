@@ -11,6 +11,7 @@ const ONLY_SERVER = ["check_rate_limit", "claim_next_job", "complete_job", "fail
 const SIGNED_IN = [
   "create_group",
   "create_invitation",
+  "remove_member",
   "is_group_member",
   "is_group_owner",
   "redeem_invitation",
@@ -29,6 +30,7 @@ const dummyArgs: Record<string, Record<string, unknown>> = {
   is_group_owner: { gid: randomUUID() },
   redeem_invitation: { p_token_hash: "0".repeat(64) },
   retry_job: { p_job_id: randomUUID() },
+  remove_member: { p_group_id: randomUUID(), p_user_id: randomUUID() },
   revoke_invitation: { p_group_id: randomUUID(), p_invitation_id: randomUUID() },
 };
 

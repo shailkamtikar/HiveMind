@@ -11,6 +11,7 @@ Last reviewed: 2026-10-26 (end of Phase 5). Applies to the dev Supabase project;
 | AI replies | Someone posts a fake "HiveMind" message | Clients can only insert `type = 'user'` as themselves; assistant and system rows are written by server-only SQL functions. |
 | Invitations | A leaked database or log reveals working links | Only a SHA-256 hash is stored; the hash column is not readable by clients; links expire (3 days) and can be revoked. |
 | Invitations | Link scanners or previews use up a link | The join page redeems with a `POST` from a real signed-in browser, never on `GET`. |
+| Someone who should no longer be in a conversation | The owner removes them (`remove_member`): access ends at once, and any link that existed at that moment can no longer bring them back. **Revoking a link only stops new people joining; it does not remove people who already used it.** |
 | Group capacity | Two people race for the last seat | `redeem_invitation` locks the group row; tested 10 rounds in a row. |
 | Gemini quota and cost | A member (or script) hammers the AI | Per-user limits in Postgres (20 messages/min, 6 AI calls/min), a 60 s group cool-down after a quota error, at most 3 attempts per message. |
 | API keys | Keys reach the browser or git | Keys are only read in server code; `server-only` makes a client import a build error; `.env.local` is git-ignored; the history scan (`npm run scan:secrets`) is clean; the built client bundle contains no key. |
@@ -29,6 +30,7 @@ Tested by `tests/security/matrix.test.ts` (every table x anonymous / signed-in n
 | `messages` | members | members insert `user` messages as themselves; nothing else, nobody edits or deletes |
 | `invitations` | owner only (never the hash) | nobody directly; `create_invitation()` / `revoke_invitation()` for the owner |
 | `ai_jobs` | members (never the lock time) | nobody directly; server functions only |
+| `group_removals` | nobody | server functions only (`remove_member`) |
 | `rate_limits` | nobody | server only |
 
 Routes are covered by `tests/security/routes.test.ts` (every file under `src/app/api` x signed out / non-member / member). The test fails if a route is added without being listed. Functions are covered by `tests/security/functions.test.ts`: the list of functions the API exposes is read from the running project and must match the reviewed list; anonymous callers can run none; signed-in users cannot run the four server-only ones.
