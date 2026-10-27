@@ -110,6 +110,10 @@ The database and browser tests create temporary `hm-test-*@example.com` users in
 | [`docs/design/design-notes.md`](docs/design/design-notes.md) | Design tokens, motion rules, library licenses |
 | [`docs/HiveMind_Development_Playbook.md`](docs/HiveMind_Development_Playbook.md) | The build plan, with a log of every deviation from it |
 
+## Licence
+
+No licence has been granted for now: all rights reserved. The third-party libraries and fonts keep their own licences (see Credits).
+
 ## Credits
 
 Fonts: Geist and Geist Mono (SIL Open Font License), Instrument Serif (SIL Open Font License), via `next/font`. Motion: [GSAP](https://gsap.com/standard-license) (GreenSock "no charge" standard license) and [Lenis](https://github.com/darkroomengineering/lenis) (MIT), on the public pages only. The in-app effects are written from scratch in the spirit of [React Bits](https://reactbits.dev); no component source was copied. Details in [`docs/design/design-notes.md`](docs/design/design-notes.md).
