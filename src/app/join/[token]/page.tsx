@@ -48,9 +48,9 @@ export default function JoinPage({ params }: PageProps<"/join/[token]">) {
     <>
       <AmbientBackground />
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center gap-6 px-4 py-16">
-        <p className="rise flex items-center gap-2 font-mono text-[11px] uppercase tracking-wide text-muted">
+        <Link href="/" prefetch={false} className="rise inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wide text-muted hover:text-foreground">
           <LogoMark /> HiveMind
-        </p>
+        </Link>
         <SpotlightCard className="rise p-6 sm:p-7" style={{ "--i": 2 } as React.CSSProperties}>
           <Suspense fallback={<div className="h-32" aria-hidden />}>
             <JoinContent params={params} />

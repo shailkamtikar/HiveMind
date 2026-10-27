@@ -10,7 +10,7 @@
 
 ## What it does
 
-- **Sign in** with email and password.
+- **Sign in** with email and password, with a **Forgot your password?** link: it emails a link that signs you in and lets you choose a new password.
 - **Start a conversation** and talk to the AI on your own.
 - **Share it**: the owner creates an invite link (expires after 3 days, revocable, up to 5 people in total). Joining requires an account, and new members can read the whole history.
 - **Live, ordered chat**: messages reach everyone in real time and in one agreed order; a dropped connection catches up on reconnect.

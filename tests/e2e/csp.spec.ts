@@ -105,3 +105,44 @@ test("T6.1-9 GSAP, Lenis and three.js are loaded on the landing page and nowhere
     await deleteUserByEmail(newEmail);
   }
 });
+
+test("opening a conversation and going back show a placeholder at once, even when the server is slow", async ({ page }) => {
+  const email2 = `hm-test-snappy-${randomBytes(4).toString("hex")}@example.com`;
+  try {
+    await page.goto("/login?mode=signup");
+    await page.getByLabel("Your name").fill("Snappy");
+    await page.getByLabel("Email").fill(email2);
+    await page.getByLabel("Password").fill("correct-horse-9");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await page.waitForURL("**/groups");
+    await page.getByLabel("New conversation").fill("test");
+    await page.getByRole("button", { name: "Start conversation" }).click();
+    await page.waitForURL(/\/groups\/[0-9a-f-]{36}$/);
+    await page.goto("/groups");
+    await expect(page.getByRole("link", { name: /test/ })).toBeVisible();
+    await page.waitForTimeout(1500); // let the links' shells be prefetched, as they are for a real visitor
+
+    // The server answers the conversation page 2.5 seconds late, as if it were far away.
+    await page.route(/\/groups\/[0-9a-f-]{36}/, async (route) => {
+      await new Promise((r) => setTimeout(r, 2500));
+      await route.continue();
+    });
+    const started = Date.now();
+    await page.getByRole("link", { name: /test/ }).click();
+    await expect(page.getByRole("status", { name: "Opening the conversation" })).toBeVisible({ timeout: 1500 });
+    expect(Date.now() - started).toBeLessThan(1500);
+    await expect(page.locator("#composer")).toBeVisible({ timeout: 20_000 });
+
+    // And back to the list: its own placeholder shows straight away.
+    await page.unroute(/\/groups\/[0-9a-f-]{36}/);
+    await page.route(/\/groups(\?|$)/, async (route) => {
+      await new Promise((r) => setTimeout(r, 2500));
+      await route.continue();
+    });
+    await page.getByRole("link", { name: /All conversations/ }).click();
+    await expect(page.getByRole("status", { name: "Loading your conversations" })).toBeVisible({ timeout: 1500 });
+    await expect(page.getByRole("heading", { name: "Your conversations" })).toBeVisible({ timeout: 20_000 });
+  } finally {
+    await deleteUserByEmail(email2);
+  }
+});

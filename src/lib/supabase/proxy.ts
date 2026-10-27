@@ -1,10 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { currentUser } from "@/lib/auth/session";
 import { getSupabasePublicEnv } from "./env";
 
 /**
  * Refreshes the Supabase session cookies for this request and returns the verified user.
- * Uses getUser() (verified with the Auth server), never the unverified cookie contents.
+ * The token is verified (signature and expiry) by getClaims(), never trusted from the cookie as-is.
  */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -21,9 +22,7 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser(supabase);
 
   return { user, getResponse: () => response };
 }

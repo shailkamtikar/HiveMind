@@ -14,8 +14,9 @@ Everything marked **you** needs your accounts. Never paste keys into chat, issue
    ```
    The migrations in `supabase/migrations` are the whole schema, including row security, functions and the realtime publication. Rollback scripts for each are in `supabase/rollback`. Take a Supabase backup or export before any later production migration.
 3. Authentication > URL configuration: set **Site URL** to your Vercel URL and add `<vercel-url>/auth/callback` to the redirect URLs.
-4. Authentication > Passwords: turn on **leaked password protection** if your plan offers it.
-5. Check the advisor: `npx supabase db advisors --linked --type security`. The expected output is in [`security.md`](security.md).
+4. Authentication > SMTP: the built-in email sender is for trying things out (a few emails per hour, and only to your own team's addresses). **Set up custom SMTP** (any provider with a free tier will do) before friends use "Forgot your password?", otherwise their reset emails will not arrive. Also add `<vercel-url>/auth/callback` to the redirect URLs (step 3), because the reset link uses it.
+5. Authentication > Passwords: turn on **leaked password protection** if your plan offers it.
+6. Check the advisor: `npx supabase db advisors --linked --type security`. The expected output is in [`security.md`](security.md).
 
 Afterwards `npx supabase link` points at production; re-link to your development project for local work.
 

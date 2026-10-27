@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNext } from "@/lib/auth/safeNext";
 import { updateSession, withCookiesFrom } from "@/lib/supabase/proxy";
 
 // Paths anyone may open without signing in. Everything else requires a session.
-const PUBLIC_PATHS = ["/", "/login", "/auth", "/api/health", "/design", "/privacy", "/join"];
+const PUBLIC_PATHS = ["/", "/login", "/forgot-password", "/auth", "/api/health", "/design", "/privacy", "/join"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || (p !== "/" && pathname.startsWith(`${p}/`)));
@@ -16,6 +17,11 @@ export async function proxy(request: NextRequest) {
 
   const { user, getResponse } = await updateSession(request);
   const response = getResponse();
+
+  // Already signed in: the sign-in page has nothing to offer, so go where the visitor was headed (or to their conversations).
+  if (user && pathname === "/login") {
+    return withCookiesFrom(response, NextResponse.redirect(new URL(safeNext(request.nextUrl.searchParams.get("next")), request.url)));
+  }
 
   if (user || isPublic(pathname)) return response;
 

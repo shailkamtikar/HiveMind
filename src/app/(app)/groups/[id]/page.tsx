@@ -23,34 +23,39 @@ export default async function GroupPage({ params }: PageProps<"/groups/[id]">) {
   const user = await getUser();
   if (!user) notFound();
 
+  // Everything the page needs is requested at the same time (each request is a round trip to the database, so
+  // asking one after another is what made opening a conversation slow). Row Level Security filters all of it:
+  // for someone who is not a member every answer is empty and the page is a 404.
   const supabase = await createClient();
-  const { data: group } = await supabase
-    .from("groups")
-    .select("id, name, member_limit, owner_id")
-    .eq("id", id)
-    .maybeSingle();
+  const [groupResult, membersAndNames, history, jobsResult] = await Promise.all([
+    supabase.from("groups").select("id, name, member_limit, owner_id").eq("id", id).maybeSingle(),
+    (async () => {
+      const { data: members } = await supabase
+        .from("group_members")
+        .select("user_id, role")
+        .eq("group_id", id)
+        .order("joined_at", { ascending: true });
+      const ids = (members ?? []).map((m) => m.user_id);
+      const { data: profiles } = ids.length
+        ? await supabase.from("profiles").select("id, display_name").in("id", ids)
+        : { data: [] };
+      return { members, profiles };
+    })(),
+    fetchMessagesPage(supabase, id, { limit: 30 }),
+    // AI work that is waiting, running or failed, so the chat can show "thinking" and failure notices from the start.
+    supabase
+      .from("ai_jobs")
+      .select("id, trigger_message_id, status, error_category, attempts, updated_at")
+      .eq("group_id", id)
+      .in("status", ["queued", "processing", "failed"])
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
+  const group = groupResult.data;
   if (!group) notFound();
-
-  const { data: members } = await supabase
-    .from("group_members")
-    .select("user_id, role")
-    .eq("group_id", group.id)
-    .order("joined_at", { ascending: true });
-  const ids = (members ?? []).map((m) => m.user_id);
-  const { data: profiles } = ids.length
-    ? await supabase.from("profiles").select("id, display_name").in("id", ids)
-    : { data: [] };
+  const { members, profiles } = membersAndNames;
   const nameOf = new Map((profiles ?? []).map((p) => [p.id, p.display_name]));
-
-  const history = await fetchMessagesPage(supabase, group.id, { limit: 30 });
-  // AI work that is waiting, running or failed, so the chat can show "thinking" and failure notices from the start.
-  const { data: jobs } = await supabase
-    .from("ai_jobs")
-    .select("id, trigger_message_id, status, error_category, attempts, updated_at")
-    .eq("group_id", group.id)
-    .in("status", ["queued", "processing", "failed"])
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const jobs = jobsResult.data;
 
   return (
     <div className="flex flex-col gap-6">

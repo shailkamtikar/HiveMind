@@ -18,14 +18,18 @@ export function cookieHeader(setCookies: string[]) {
 
 /** Signs a test user in through the real callback route and returns their session cookie. */
 export async function sessionCookie(user: TestUser): Promise<string> {
-  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: user.email });
-  if (error || !data.properties) throw new Error(`generateLink failed: ${error?.message}`);
-  const res = await fetch(`${BASE}/auth/callback?token_hash=${data.properties.hashed_token}&type=magiclink`, {
-    redirect: "manual",
-  });
-  const cookie = cookieHeader(res.headers.getSetCookie());
-  if (!cookie) throw new Error("sign-in produced no session cookie");
-  return cookie;
+  // The auth service limits sign-ins in a short time; if a link is refused, wait and ask for a fresh one.
+  for (let attempt = 1; ; attempt++) {
+    const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: user.email });
+    if (error || !data.properties) throw new Error(`generateLink failed: ${error?.message}`);
+    const res = await fetch(`${BASE}/auth/callback?token_hash=${data.properties.hashed_token}&type=magiclink`, {
+      redirect: "manual",
+    });
+    const cookie = cookieHeader(res.headers.getSetCookie());
+    if (cookie) return cookie;
+    if (attempt >= 4) throw new Error("sign-in produced no session cookie");
+    await new Promise((r) => setTimeout(r, 4000 * attempt));
+  }
 }
 
 export function api(cookie?: string) {

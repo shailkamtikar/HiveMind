@@ -53,6 +53,12 @@ Why the CSP, `X-Frame-Options` and `Permissions-Policy` are production-only: wit
 | Seven `SECURITY DEFINER` functions are callable by signed-in users (`create_group`, `create_invitation`, `is_group_member`, `is_group_owner`, `redeem_invitation`, `retry_job`, `revoke_invitation`) | warn | Intended: each one reads `auth.uid()` itself and checks membership or ownership; none takes a user id from the caller. They are exactly the ones in `SIGNED_IN` in `tests/security/functions.test.ts`. |
 | Leaked password protection is disabled | warn | A Supabase dashboard setting (Auth > Passwords). Turn it on if the plan offers it; it is not available on every plan. Owner action. |
 
+## Passwords and sessions
+
+- **Forgot password.** `/forgot-password` asks Supabase to email a reset link; the answer is identical whether or not an account exists. The link goes through `/auth/callback`, which signs the person in and sends them to `/reset-password` (a page that needs a session), where they choose a new password (8 to 72 characters, typed twice). The old password stops working at once.
+- **Token checks without a network call.** Every page and API route learns who is signed in with `getClaims()`, which verifies the access token's signature and expiry against the project's published signing keys (ES256) instead of asking the Auth server on every request. Trade-off: if a session is revoked on the server, its token keeps working until it expires (about an hour). The database already behaved that way, because it accepts the same token, and access to conversations is decided by membership rows in the database, so nobody gains access to anything they could not already see. A removed member loses access immediately regardless.
+- **Email delivery.** Supabase's built-in email sender has a low hourly limit and, on a new project, may only deliver to the project team's own addresses. Reset (and any other) emails to friends need custom SMTP (see `deploy.md`).
+
 ## Known limitations (accepted, documented)
 
 1. **Anonymous realtime pulse.** A signed-out client holding only the public key can receive an *empty* realtime event when any message is inserted (no ids, group, sender or text). That is Supabase behaviour and reveals only that something happened.

@@ -9,13 +9,22 @@ export async function signedInContext(
   label: string,
 ): Promise<{ user: TestUser; context: BrowserContext; page: Page }> {
   const user = await createTestUser(label);
-  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: user.email });
-  if (error || !data.properties) throw new Error(`generateLink failed: ${error?.message}`);
-
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto(`/auth/callback?token_hash=${data.properties.hashed_token}&type=magiclink`);
-  await page.waitForURL("**/groups");
+  // The auth service limits how many sign-ins it accepts in a short time, and a long test run gets close to that.
+  // A refused sign-in link lands on /login?error=link, so wait a little and ask for a fresh one.
+  for (let attempt = 1; ; attempt++) {
+    const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: user.email });
+    if (error || !data.properties) throw new Error(`generateLink failed: ${error?.message}`);
+    await page.goto(`/auth/callback?token_hash=${data.properties.hashed_token}&type=magiclink`);
+    try {
+      await page.waitForURL("**/groups", { timeout: 15_000 });
+      break;
+    } catch (e) {
+      if (attempt >= 4) throw e;
+      await page.waitForTimeout(4000 * attempt);
+    }
+  }
   return { user, context, page };
 }
 

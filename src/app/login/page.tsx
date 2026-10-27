@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { safeNext } from "@/lib/auth/safeNext";
 import { AmbientBackground } from "@/components/fx/AmbientBackground";
 import { BlurText } from "@/components/fx/BlurText";
@@ -13,7 +14,7 @@ async function LoginContent({ searchParams }: { searchParams: PageProps<"/login"
   const sp = await searchParams;
   const next = safeNext(first(sp.next));
   const notice =
-    first(sp.error) === "link" ? "That sign-in link is invalid or has expired. Sign in below instead." : undefined;
+    first(sp.error) === "link" ? "That link is invalid or has expired. Sign in below, or ask for a new password reset link." : undefined;
   return <LoginForm next={next} notice={notice} initialMode={first(sp.mode) === "signup" ? "signup" : "signin"} />;
 }
 
@@ -23,9 +24,9 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
       <AmbientBackground />
       <main className="mx-auto grid w-full max-w-5xl flex-1 items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[1.15fr_1fr]">
         <header>
-          <p className="rise flex items-center gap-2 font-mono text-[11px] uppercase tracking-wide text-muted" style={{ "--i": 0 } as React.CSSProperties}>
+          <Link href="/" prefetch={false} className="rise inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wide text-muted hover:text-foreground" style={{ "--i": 0 } as React.CSSProperties}>
             <LogoMark /> HiveMind
-          </p>
+          </Link>
           <h1 className="mt-5 font-display text-6xl leading-[0.95] sm:text-7xl">
             <BlurText text="One chat. Many minds. One AI." startMs={150} />
           </h1>

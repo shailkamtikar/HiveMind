@@ -35,3 +35,15 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   }
   return out;
 }
+
+export const forgotSchema = z.object({ email });
+
+export const resetSchema = z
+  .object({
+    password: z
+      .string()
+      .min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters.`)
+      .max(PASSWORD_MAX, `Use at most ${PASSWORD_MAX} characters.`),
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "The two passwords do not match." });

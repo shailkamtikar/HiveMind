@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { ChatPreview } from "@/components/landing/ChatPreview";
-import { Line, SectionRule, TickCard } from "@/components/landing/Editorial";
+import { Line, SectionRule } from "@/components/landing/Editorial";
 import { HiveFallback } from "@/components/landing/HiveFallback";
 import { HiveScene } from "@/components/landing/HiveScene";
 import { MarketingShell } from "@/components/landing/MarketingShell";
+import { StartCta, StartCtaFallback } from "@/components/landing/StartCta";
 
 const STEPS = [
   {
@@ -53,12 +55,9 @@ export default function Home() {
               HiveMind is one conversation that everyone, and one AI, shares. Ask together, disagree out loud, and let the AI answer with the whole thread in front of it.
             </p>
             <div className="rise mt-9" style={{ "--i": 8 } as React.CSSProperties}>
-              <TickCard href="/login?mode=signup" eyebrow="Next" title="Start a conversation" hint="Free to try · email and password · up to five people" />
-              <p className="mt-4">
-                <Link href="/login" className="text-sm text-muted underline-offset-4 hover:text-foreground hover:underline">
-                  I already have an account
-                </Link>
-              </p>
+              <Suspense fallback={<StartCtaFallback />}>
+                <StartCta variant="hero" />
+              </Suspense>
             </div>
           </div>
           <div className="rise" style={{ "--i": 4 } as React.CSSProperties}>
@@ -129,7 +128,9 @@ export default function Home() {
         <section className="mx-auto mt-28 w-full max-w-6xl px-4 sm:px-6" data-reveal>
           <div className="flex flex-col items-start justify-between gap-8 border-t border-border pt-10 lg:flex-row lg:items-center">
             <h2 className="max-w-lg font-display text-4xl leading-tight sm:text-5xl">Bring the group. Ask the question.</h2>
-            <TickCard href="/login?mode=signup" eyebrow="Ready" title="Create an account" hint="Email and password · takes a minute" />
+            <Suspense fallback={<StartCtaFallback />}>
+              <StartCta variant="closing" />
+            </Suspense>
           </div>
         </section>
       </main>

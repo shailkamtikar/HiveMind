@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -42,6 +43,9 @@ function SignInForm({ next }: { next: string }) {
         error={state.errors?.password}
         required
       />
+      <Link href="/forgot-password" className="-mt-2 self-start text-sm text-muted underline-offset-4 hover:text-foreground hover:underline">
+        Forgot your password?
+      </Link>
       <Button type="submit" disabled={pending} className="btn-shine">
         {pending ? "Signing in…" : "Sign in"}
       </Button>
