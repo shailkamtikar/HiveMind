@@ -13,7 +13,8 @@
     "dev:test": "node scripts/dev-test.mjs",
     "dev:test-ai": "node scripts/dev-test.mjs ai",
     "scan:secrets": "node scripts/scan-secrets.mjs",
-    "test:csp": "node scripts/test-csp.mjs"
+    "test:csp": "node scripts/test-csp.mjs",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^2.31.0",

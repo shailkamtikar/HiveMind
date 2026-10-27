@@ -72,6 +72,7 @@ Never commit `.env.local`. It is git-ignored; only `.env.example` is tracked.
 ```bash
 npm test                  # unit tests
 npm run lint
+npm run typecheck
 npm run dev:test          # leave running in another terminal (test server, AI off)
 npm run test:db           # database, API and security tests against your Supabase project
 npm run test:e2e          # browser tests (start their own test servers)
