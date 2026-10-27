@@ -50,7 +50,7 @@ Why the CSP, `X-Frame-Options` and `Permissions-Policy` are production-only: wit
 | Finding | Level | Decision |
 |---|---|---|
 | `rate_limits` has RLS enabled and no policies | info | Intended: only the server touches it. |
-| Seven `SECURITY DEFINER` functions are callable by signed-in users (`create_group`, `create_invitation`, `is_group_member`, `is_group_owner`, `redeem_invitation`, `retry_job`, `revoke_invitation`) | warn | Intended: each one reads `auth.uid()` itself and checks membership or ownership; none takes a user id from the caller. They are exactly the ones in `SIGNED_IN` in `tests/security/functions.test.ts`. |
+| Eight `SECURITY DEFINER` functions are callable by signed-in users (`create_group`, `create_invitation`, `is_group_member`, `is_group_owner`, `redeem_invitation`, `remove_member`, `retry_job`, `revoke_invitation`) | warn | Intended: each one reads `auth.uid()` itself and checks membership or ownership; none takes a user id from the caller. They are exactly the ones in `SIGNED_IN` in `tests/security/functions.test.ts`. |
 | Leaked password protection is disabled | warn | A Supabase dashboard setting (Auth > Passwords). Turn it on if the plan offers it; it is not available on every plan. Owner action. |
 
 ## Passwords and sessions
