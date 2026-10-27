@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies, headers } from "next/headers";
+import { siteUrl } from "@/lib/siteUrl";
 import { createClient } from "@/lib/supabase/server";
 import { fieldErrors, forgotSchema } from "@/lib/validation/auth";
 
@@ -18,7 +19,7 @@ export async function requestReset(_prev: ForgotState, formData: FormData): Prom
   if (!parsed.success) return { status: "idle", error: fieldErrors(parsed.error).email ?? "Enter a valid email address.", email: raw.trim() };
 
   const h = await headers();
-  const base = process.env.APP_BASE_URL || h.get("origin") || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
+  const base = siteUrl(h.get("origin") || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`);
 
   // Where to go once the link has signed them in (the callback reads this; it only ever accepts local paths).
   (await cookies()).set(NEXT_COOKIE, "/reset-password", {
@@ -31,7 +32,7 @@ export async function requestReset(_prev: ForgotState, formData: FormData): Prom
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${base.replace(/\/$/, "")}/auth/callback`,
+    redirectTo: `${base}/auth/callback`,
   });
   if (error && (error.status === 429 || /rate limit|too many|seconds/i.test(error.message))) {
     return { status: "idle", error: "Too many reset emails were requested. Wait a few minutes and try again.", email: parsed.data.email };

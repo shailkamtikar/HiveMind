@@ -33,6 +33,8 @@ Afterwards `npx supabase link` points at production; re-link to your development
    | `GEMINI_MODEL` | `gemini-3.5-flash` | same |
    | `APP_BASE_URL` | the production URL, no trailing slash | leave unset for previews |
 
+   `APP_BASE_URL` is the address put into reset-password emails and invitation links, so it must be your real domain, not `http://localhost:3000` (the value in `.env.local`). As a safety net, a production build ignores a localhost value when the request came from another address. The Supabase **Site URL** and redirect URLs (section 1, step 3) must be the same domain, because Supabase refuses to send people to addresses that are not on that list. When you add a custom domain later, change all three together.
+
    Only the first two are meant to be public. Mark the others as sensitive. `SUPABASE_DB_PASSWORD` is not needed on Vercel. Do **not** set `AI_MODE=mock` (it is ignored in production anyway).
 3. Deploy. Function duration: the AI routes declare `maxDuration = 120`, within the 300 s the Hobby plan allows (see [`decisions/0001-ai-orchestration.md`](decisions/0001-ai-orchestration.md)).
 
