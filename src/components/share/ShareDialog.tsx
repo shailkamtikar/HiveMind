@@ -100,6 +100,11 @@ export function ShareDialog({ groupId, groupName, memberCount, memberLimit }: {
               <li>New members can read the <strong>entire history</strong>.</li>
               <li>Every message is visible to all members and is sent to Google Gemini so the AI can reply.</li>
             </ul>
+            <p className="mt-2">
+              <a href="/privacy" target="_blank" rel="noopener" className="underline underline-offset-4">
+                Read the full privacy notice
+              </a>
+            </p>
           </section>
 
           {full && (

@@ -39,11 +39,12 @@ export function securityHeaders(opts: { isDev: boolean; supabaseUrl?: string }) 
     // smoke test (tests/e2e/csp.spec.ts).
     ...(opts.isDev ? [] : [{ key: "Content-Security-Policy", value: contentSecurityPolicy(opts) }]),
     { key: "X-Content-Type-Options", value: "nosniff" },
-    // Also production-only: the Next.js dev server renders pages in a frame to validate navigations, and a
-    // frame-blocking header made it fall into a reload loop.
+    // Production-only: see the note on Permissions-Policy. The dev server is sensitive to these headers.
     ...(opts.isDev ? [] : [{ key: "X-Frame-Options", value: "DENY" }]),
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-    { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+    // Production-only as well: with this header present the Next.js dev server reloaded every page endlessly
+    // (found by removing headers one at a time).
+    ...(opts.isDev ? [] : [{ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" }]),
     ...(opts.isDev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]),
   ];
 }

@@ -2,8 +2,9 @@ import type { NextRequest } from "next/server";
 import { authorizeGroup, json } from "@/lib/api/group";
 import { getConfig } from "@/lib/config";
 import { generateInviteToken } from "@/lib/invites/token";
+import { siteUrl } from "@/lib/siteUrl";
 
-const baseUrl = (request: NextRequest) => (process.env.APP_BASE_URL || request.nextUrl.origin).replace(/\/$/, "");
+const baseUrl = (request: NextRequest) => siteUrl(request.nextUrl.origin);
 
 /** Active (not revoked, not expired) invitations. Only the owner may see them; the token itself is never retrievable. */
 export async function GET(_request: NextRequest, ctx: RouteContext<"/api/groups/[id]/invitations">) {

@@ -33,3 +33,20 @@ describe("signInSchema", () => {
     expect(signInSchema.safeParse({ email: "abc", password: "x" }).success).toBe(false);
   });
 });
+
+describe("forgotSchema and resetSchema", () => {
+  it("normalises the email to ask for a reset", async () => {
+    const { forgotSchema } = await import("./auth");
+    expect(forgotSchema.parse({ email: "  Me@Example.COM " })).toEqual({ email: "me@example.com" });
+    expect(forgotSchema.safeParse({ email: "nope" }).success).toBe(false);
+  });
+  it("needs a long enough password typed twice the same way", async () => {
+    const { resetSchema } = await import("./auth");
+    expect(resetSchema.safeParse({ password: "long-enough-1", confirm: "long-enough-1" }).success).toBe(true);
+    const short = resetSchema.safeParse({ password: "short", confirm: "short" });
+    expect(short.success).toBe(false);
+    const differ = resetSchema.safeParse({ password: "long-enough-1", confirm: "long-enough-2" });
+    expect(differ.success).toBe(false);
+    if (!differ.success) expect(fieldErrors(differ.error)).toEqual({ confirm: "The two passwords do not match." });
+  });
+});

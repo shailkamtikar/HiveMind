@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/Button";
 import { AmbientBackground } from "@/components/fx/AmbientBackground";
 import { LogoMark } from "@/components/fx/Logo";
 
+// No prefetch on the home link: the landing page carries the animation libraries, and the chat should not download them just in case.
 const Logo = () => (
-  <Link href="/groups" className="flex items-center gap-2 font-display text-2xl leading-none">
+  <Link href="/" prefetch={false} className="flex items-center gap-2 font-display text-2xl leading-none" aria-label="HiveMind home">
     <LogoMark />
     HiveMind
   </Link>

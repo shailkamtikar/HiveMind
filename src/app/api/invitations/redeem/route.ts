@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { json } from "@/lib/api/group";
 import { hashInviteToken, isPlausibleToken } from "@/lib/invites/token";
+import { currentUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
 export type RedeemStatus = "joined" | "already_member" | "invalid" | "full";
@@ -11,9 +12,7 @@ export type RedeemStatus = "joined" | "already_member" | "invalid" | "full";
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser(supabase);
   if (!user) return json({ error: "Unauthorized" }, 401);
 
   let body: unknown;

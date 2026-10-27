@@ -70,7 +70,7 @@ test("T3.3-1 / T3.3-8 invite to join: a new person signs up from the link and la
   await expect(b.getByText("Bea").first()).toBeVisible();
   // A sees the new member in the list.
   await a.page.reload();
-  await expect(a.page.getByText("Bea")).toBeVisible();
+  await expect(a.page.getByText("Bea", { exact: true })).toBeVisible();
   await context.close();
   await a.context.close();
 });
@@ -198,4 +198,35 @@ test("opening a link does not use it up until the page runs in a signed-in brows
   const { data } = await admin.from("group_members").select("user_id").eq("group_id", a.groupId);
   expect(data).toHaveLength(1); // still only the owner
   await a.context.close();
+});
+
+test("the owner removes a member from the members list; their chat stops working at once", async ({ browser }) => {
+  const a = await ownerWithGroup(browser, "invRm");
+  await a.page.locator("#composer").fill("hello");
+  await a.page.locator("#composer").press("Enter");
+  await expect(a.page.getByTestId("message").first()).toHaveAttribute("data-status", "sent");
+
+  const m = await signedInContext(browser, "invRmM");
+  await admin.from("profiles").update({ display_name: "Mina" }).eq("id", m.user.id);
+  await admin.from("group_members").insert({ group_id: a.groupId, user_id: m.user.id, role: "member" });
+  await m.page.goto(a.page.url());
+  await expect(m.page.locator("#composer")).toBeVisible();
+  await expect(m.page.getByRole("button", { name: /^Remove / })).toHaveCount(0); // only the owner sees Remove
+
+  await a.page.reload();
+  await a.page.getByRole("button", { name: "Remove Mina" }).click();
+  const dialog = a.page.getByRole("dialog");
+  await expect(dialog).toContainText("loses access");
+  await dialog.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(a.page.getByText("Mina")).toHaveCount(0);
+
+  // Mina is still looking at the chat; her next message is refused with a clear reason.
+  await m.page.locator("#composer").fill("can I still talk?");
+  await m.page.locator("#composer").press("Enter");
+  const failed = m.page.locator('[data-testid="message"][data-status="failed"]');
+  await expect(failed).toContainText("no longer part of this conversation", { timeout: 10_000 });
+  await m.page.reload();
+  await expect(m.page.getByText("Conversation not found")).toBeVisible();
+  await a.context.close();
+  await m.context.close();
 });

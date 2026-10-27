@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/auth/session";
 import { getConfig } from "@/lib/config";
 import { createGroupSchema } from "@/lib/validation/group";
 
@@ -14,9 +15,7 @@ export async function createGroup(_prev: CreateGroupState, formData: FormData): 
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser(supabase);
   if (!user) redirect("/login");
 
   const { data, error } = await supabase.rpc("create_group", {

@@ -26,6 +26,7 @@ const routes: Array<Call & { signedOut: number; outsider: number; member: number
   { name: "GET invitations", file: "api/groups/[id]/invitations", run: (a) => a.get(url("/invitations")), signedOut: 401, outsider: 404, member: 403 },
   { name: "POST invitations", file: "api/groups/[id]/invitations", run: (a) => a.post(url("/invitations"), {}), signedOut: 401, outsider: 404, member: 403 },
   { name: "DELETE invitation", file: "api/groups/[id]/invitations/[inviteId]", run: (a) => a.delete(url(`/invitations/${randomUUID()}`)), signedOut: 401, outsider: 404, member: 403 },
+  { name: "DELETE member", file: "api/groups/[id]/members/[userId]", run: (a) => a.delete(url(`/members/${randomUUID()}`)), signedOut: 401, outsider: 404, member: 403 },
   { name: "POST ai/process", file: "api/groups/[id]/ai/process", run: (a) => a.post(url("/ai/process"), {}), signedOut: 401, outsider: 404, member: 200 },
   { name: "POST ai/retry", file: "api/groups/[id]/ai/retry", run: (a) => a.post(url("/ai/retry"), { jobId }), signedOut: 401, outsider: 404, member: 409 },
   { name: "POST invitations/redeem", file: "api/invitations/redeem", run: (a) => a.post("/api/invitations/redeem", { token: "x".repeat(43) }), signedOut: 401, outsider: 200, member: 200 },
@@ -83,7 +84,8 @@ describe("T5.4-6 security headers on a running app", () => {
       // Frame blocking and the CSP are production-only (tests/e2e/csp.spec.ts checks them on a production build).
       const frame = res.headers.get("x-frame-options");
       if (frame) expect(frame).toBe("DENY");
-      expect(res.headers.get("permissions-policy")).toContain("camera=()");
+      const pp = res.headers.get("permissions-policy");
+      if (pp) expect(pp).toContain("camera=()");
       // The CSP is applied to production builds only (see tests/e2e/csp.spec.ts); a dev server sends none.
       const csp = res.headers.get("content-security-policy");
       if (csp) {

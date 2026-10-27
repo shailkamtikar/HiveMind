@@ -11,6 +11,7 @@ Last reviewed: 2026-10-26 (end of Phase 5). Applies to the dev Supabase project;
 | AI replies | Someone posts a fake "HiveMind" message | Clients can only insert `type = 'user'` as themselves; assistant and system rows are written by server-only SQL functions. |
 | Invitations | A leaked database or log reveals working links | Only a SHA-256 hash is stored; the hash column is not readable by clients; links expire (3 days) and can be revoked. |
 | Invitations | Link scanners or previews use up a link | The join page redeems with a `POST` from a real signed-in browser, never on `GET`. |
+| Someone who should no longer be in a conversation | The owner removes them (`remove_member`): access ends at once, and any link that existed at that moment can no longer bring them back. **Revoking a link only stops new people joining; it does not remove people who already used it.** |
 | Group capacity | Two people race for the last seat | `redeem_invitation` locks the group row; tested 10 rounds in a row. |
 | Gemini quota and cost | A member (or script) hammers the AI | Per-user limits in Postgres (20 messages/min, 6 AI calls/min), a 60 s group cool-down after a quota error, at most 3 attempts per message. |
 | API keys | Keys reach the browser or git | Keys are only read in server code; `server-only` makes a client import a build error; `.env.local` is git-ignored; the history scan (`npm run scan:secrets`) is clean; the built client bundle contains no key. |
@@ -29,6 +30,7 @@ Tested by `tests/security/matrix.test.ts` (every table x anonymous / signed-in n
 | `messages` | members | members insert `user` messages as themselves; nothing else, nobody edits or deletes |
 | `invitations` | owner only (never the hash) | nobody directly; `create_invitation()` / `revoke_invitation()` for the owner |
 | `ai_jobs` | members (never the lock time) | nobody directly; server functions only |
+| `group_removals` | nobody | server functions only (`remove_member`) |
 | `rate_limits` | nobody | server only |
 
 Routes are covered by `tests/security/routes.test.ts` (every file under `src/app/api` x signed out / non-member / member). The test fails if a route is added without being listed. Functions are covered by `tests/security/functions.test.ts`: the list of functions the API exposes is read from the running project and must match the reviewed list; anonymous callers can run none; signed-in users cannot run the four server-only ones.
@@ -37,7 +39,7 @@ Routes are covered by `tests/security/routes.test.ts` (every file under `src/app
 
 Set in `next.config.ts` from `src/lib/securityHeaders.ts` for every path: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and, **in production builds only**, the Content-Security-Policy and HSTS.
 
-Why the CSP and `X-Frame-Options` are production-only: with either present the Next.js development server (hot reloading, which renders pages in a frame to validate navigations) fell into an endless page-reload loop, and a policy loose enough to stop that would test nothing. The real policy is tested against a production build: `npm run test:csp` builds the app, starts it on port 3300, signs up, chats over the realtime websocket, opens the share dialog, and fails on any Content-Security-Policy violation reported by the browser (it passes). `/login` and `/join/*` override the referrer policy with `no-referrer` because their URLs can carry an invitation token.
+Why the CSP, `X-Frame-Options` and `Permissions-Policy` are production-only: with these present the Next.js development server fell into an endless page-reload loop (isolated by removing headers one at a time; `Permissions-Policy` alone reproduces it), and a policy loose enough to stop that would test nothing. The real policy is tested against a production build: `npm run test:csp` builds the app, starts it on port 3300, signs up, chats over the realtime websocket, opens the share dialog, and fails on any Content-Security-Policy violation reported by the browser (it passes). `/login` and `/join/*` override the referrer policy with `no-referrer` because their URLs can carry an invitation token.
 
 **Known compromise:** the CSP allows `'unsafe-inline'` scripts, because Next.js injects small inline bootstrap scripts. A nonce-based CSP would remove this; it needs a request-time nonce from `proxy.ts` and is a good follow-up before a wide public launch. `'unsafe-eval'` is allowed in development only.
 
@@ -48,8 +50,14 @@ Why the CSP and `X-Frame-Options` are production-only: with either present the N
 | Finding | Level | Decision |
 |---|---|---|
 | `rate_limits` has RLS enabled and no policies | info | Intended: only the server touches it. |
-| Seven `SECURITY DEFINER` functions are callable by signed-in users (`create_group`, `create_invitation`, `is_group_member`, `is_group_owner`, `redeem_invitation`, `retry_job`, `revoke_invitation`) | warn | Intended: each one reads `auth.uid()` itself and checks membership or ownership; none takes a user id from the caller. They are exactly the ones in `SIGNED_IN` in `tests/security/functions.test.ts`. |
+| Eight `SECURITY DEFINER` functions are callable by signed-in users (`create_group`, `create_invitation`, `is_group_member`, `is_group_owner`, `redeem_invitation`, `remove_member`, `retry_job`, `revoke_invitation`) | warn | Intended: each one reads `auth.uid()` itself and checks membership or ownership; none takes a user id from the caller. They are exactly the ones in `SIGNED_IN` in `tests/security/functions.test.ts`. |
 | Leaked password protection is disabled | warn | A Supabase dashboard setting (Auth > Passwords). Turn it on if the plan offers it; it is not available on every plan. Owner action. |
+
+## Passwords and sessions
+
+- **Forgot password.** `/forgot-password` asks Supabase to email a reset link; the answer is identical whether or not an account exists. The link goes through `/auth/callback`, which signs the person in and sends them to `/reset-password` (a page that needs a session), where they choose a new password (8 to 72 characters, typed twice). The old password stops working at once.
+- **Token checks without a network call.** Every page and API route learns who is signed in with `getClaims()`, which verifies the access token's signature and expiry against the project's published signing keys (ES256) instead of asking the Auth server on every request. Trade-off: if a session is revoked on the server, its token keeps working until it expires (about an hour). The database already behaved that way, because it accepts the same token, and access to conversations is decided by membership rows in the database, so nobody gains access to anything they could not already see. A removed member loses access immediately regardless.
+- **Email delivery.** Supabase's built-in email sender has a low hourly limit and, on a new project, may only deliver to the project team's own addresses. Reset (and any other) emails to friends need custom SMTP (see `deploy.md`).
 
 ## Known limitations (accepted, documented)
 
