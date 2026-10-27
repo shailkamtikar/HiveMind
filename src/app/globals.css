@@ -15,10 +15,12 @@
   --success: #067647;
   --ring: #b57a06;
   --radius: 0.75rem;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Dark follows the system unless the visitor picked a theme with the toggle (data-theme on <html>). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #0e0d0b;
     --surface: #171512;
     --surface-2: #1f1c18;
@@ -31,7 +33,26 @@
     --danger: #f97066;
     --success: #47cd89;
     --ring: #f2b441;
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+    --background: #0e0d0b;
+    --surface: #171512;
+    --surface-2: #1f1c18;
+    --border: #2f2a24;
+    --foreground: #f3efe8;
+    --muted: #a39b8c;
+    --accent: #f2b441;
+    --accent-foreground: #1a1304;
+    --accent-text: #f2b441;
+    --danger: #f97066;
+    --success: #47cd89;
+    --ring: #f2b441;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 @theme inline {
@@ -143,9 +164,11 @@ dialog::backdrop {
   animation: drift-b 30s ease-in-out infinite alternate;
 }
 @media (prefers-color-scheme: dark) {
-  .ambient-blob { opacity: 0.16; }
-  .ambient-blob-b { opacity: 0.1; }
+  :root:not([data-theme="light"]) .ambient-blob { opacity: 0.16; }
+  :root:not([data-theme="light"]) .ambient-blob-b { opacity: 0.1; }
 }
+:root[data-theme="dark"] .ambient-blob { opacity: 0.16; }
+:root[data-theme="dark"] .ambient-blob-b { opacity: 0.1; }
 @keyframes drift-a { to { transform: translate(14rem, 6rem) scale(1.15); } }
 @keyframes drift-b { to { transform: translate(-12rem, -5rem) scale(1.2); } }
 
@@ -233,3 +256,107 @@ html.lenis body {
 .lenis.lenis-stopped {
   overflow: hidden;
 }
+
+/* ------------------------------------------------------------------ editorial landing details */
+
+/* Section header: "01 ——— HOW IT WORKS". The rule draws itself in when the section arrives. */
+.section-rule {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-family: var(--font-mono-ui), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.section-rule .rule {
+  height: 1px;
+  flex: 1;
+  background: var(--foreground);
+  opacity: 0.35;
+  transform-origin: left;
+}
+html.motion-ready .section-rule .rule {
+  transform: scaleX(0);
+}
+
+/* Headline lines slide up out of a mask, one after another (pure CSS, so there is no flash before JavaScript). */
+.line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+.line > span {
+  display: inline-block;
+  animation: line-up 900ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 110ms + 120ms);
+}
+@keyframes line-up {
+  from { transform: translateY(105%); }
+}
+
+/* The call-to-action card with corner ticks that open outward on hover and an arrow that slides. */
+.tick-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 20px;
+  padding: 28px 30px;
+  background: var(--foreground);
+  color: var(--background);
+  text-decoration: none;
+  transition: transform 400ms var(--ease-out);
+}
+.tick-card:hover { transform: translateY(-2px); }
+.tick-card .tick {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 0 solid var(--accent);
+  transition: transform 400ms var(--ease-out);
+}
+.tick-card .tl { top: 9px; left: 9px; border-top-width: 1.5px; border-left-width: 1.5px; }
+.tick-card .tr { top: 9px; right: 9px; border-top-width: 1.5px; border-right-width: 1.5px; }
+.tick-card .bl { bottom: 9px; left: 9px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.tick-card .br { bottom: 9px; right: 9px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.tick-card:hover .tl, .tick-card:focus-visible .tl { transform: translate(-3px, -3px); }
+.tick-card:hover .tr, .tick-card:focus-visible .tr { transform: translate(3px, -3px); }
+.tick-card:hover .bl, .tick-card:focus-visible .bl { transform: translate(-3px, 3px); }
+.tick-card:hover .br, .tick-card:focus-visible .br { transform: translate(3px, 3px); }
+.tick-card .arrow {
+  grid-row: 1 / span 3;
+  grid-column: 2;
+  font-family: var(--font-display-serif), Georgia, serif;
+  font-size: 56px;
+  line-height: 1;
+  color: var(--accent);
+  transition: transform 400ms var(--ease-out);
+}
+.tick-card:hover .arrow, .tick-card:focus-visible .arrow { transform: translateX(10px); }
+
+/* Hairline grid behind the 3D figure. */
+.hive-stage {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--foreground) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 9%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Theme switch pill in the header. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  font-family: var(--font-mono-ui), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 200ms, border-color 200ms;
+}
+.pill:hover { background: var(--surface-2); border-color: var(--muted); }

@@ -61,20 +61,29 @@ test("pages cannot be framed and send nosniff", async ({ request }) => {
   expect(res.headers()["referrer-policy"]).toBe("no-referrer");
 });
 
-test("T6.1-9 GSAP and Lenis are loaded on the landing page and nowhere in the chat", async ({ page }) => {
-  const scripts: { url: string; body: string }[] = [];
+test("T6.1-9 GSAP, Lenis and three.js are loaded on the landing page and nowhere in the chat", async ({ page }) => {
+  // Each script is filed under the page it was requested for, so a big landing-page file that finishes
+  // downloading late cannot be mistaken for something the chat loaded.
+  let phase: "landing" | "chat" = "landing";
+  const requestedIn = new WeakMap<object, string>();
+  const scripts: { url: string; body: string; phase: string }[] = [];
+  page.on("request", (r) => requestedIn.set(r, phase));
   page.on("response", async (r) => {
-    if (r.request().resourceType() === "script") scripts.push({ url: r.url(), body: await r.text().catch(() => "") });
+    if (r.request().resourceType() === "script") scripts.push({ url: r.url(), body: await r.text().catch(() => ""), phase: requestedIn.get(r.request()) ?? phase });
   });
-  const has = () => ({
-    gsap: scripts.some((s) => /GreenSock|gsap\.registerPlugin|ScrollTrigger/.test(s.body)),
-    lenis: scripts.some((s) => /lenis-smooth|lenis-stopped/.test(s.body)),
-  });
+  const has = (which: string) => {
+    const mine = scripts.filter((s) => s.phase === which);
+    return {
+      gsap: mine.some((s) => /GreenSock|gsap\.registerPlugin|ScrollTrigger/.test(s.body)),
+      lenis: mine.some((s) => /lenis-smooth|lenis-stopped/.test(s.body)),
+      three: mine.some((s) => /WebGLRenderer/.test(s.body)),
+    };
+  };
 
   await page.goto("/");
-  await expect.poll(() => has().gsap && has().lenis, { timeout: 15_000 }).toBe(true); // the check can tell them apart
+  await expect.poll(() => Object.values(has("landing")).every(Boolean), { timeout: 20_000 }).toBe(true); // the check can tell them apart
 
-  scripts.length = 0;
+  phase = "chat";
   const newEmail = `hm-test-scope-${randomBytes(4).toString("hex")}@example.com`;
   try {
     await page.goto("/login?mode=signup");
@@ -88,8 +97,8 @@ test("T6.1-9 GSAP and Lenis are loaded on the landing page and nowhere in the ch
     await page.waitForURL(/\/groups\/[0-9a-f-]{36}$/);
     await expect(page.locator("#composer")).toBeVisible();
     await page.waitForTimeout(1500);
-    expect(scripts.length).toBeGreaterThan(0);
-    expect(has()).toEqual({ gsap: false, lenis: false });
+    expect(scripts.filter((s) => s.phase === "chat").length).toBeGreaterThan(0);
+    expect(has("chat")).toEqual({ gsap: false, lenis: false, three: false });
     // Native scrolling in the chat: no Lenis class on the document.
     expect(await page.evaluate(() => document.documentElement.classList.contains("lenis"))).toBe(false);
   } finally {

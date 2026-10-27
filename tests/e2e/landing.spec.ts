@@ -7,13 +7,51 @@ test("T6.1-1 the landing page explains the product and leads to sign-in", async 
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleName("One chat. Many minds. One AI.");
   await expect(page.getByText("HiveMind is one conversation that everyone, and one AI, shares.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Start a conversation" })).toHaveAttribute("href", "/login?mode=signup");
+  await expect(page.getByRole("link", { name: /Start a conversation/ }).first()).toHaveAttribute("href", "/login?mode=signup");
   await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
-  await expect(page.getByLabel("Example of a HiveMind conversation")).toBeVisible();
+  await expect(page.getByLabel("Example of a HiveMind conversation")).toBeAttached();
   // The scroll-triggered sections become visible when scrolled to.
   await page.getByRole("heading", { name: "Three steps, no setup for your friends." }).scrollIntoViewIfNeeded();
   await expect(page.getByRole("heading", { name: "Three steps, no setup for your friends." })).toBeVisible();
   await expect(page.getByText("Plainly stated.")).toBeAttached();
+  for (const label of ["How it works", "What it does", "Your data"]) await expect(page.locator(".section-rule", { hasText: label })).toBeAttached();
+});
+
+test("the hero is a 3D honeycomb you can turn and click", async ({ page }) => {
+  await page.goto("/");
+  const figure = page.locator(".hive-figure");
+  await expect(figure).toHaveAttribute("data-ready", "true", { timeout: 20_000 });
+  const canvas = figure.locator("canvas");
+  await expect(canvas).toBeVisible();
+  const box = (await canvas.boundingBox())!;
+  expect(box.width).toBeGreaterThan(300);
+
+  // Dragging turns it.
+  const before = Number(await figure.getAttribute("data-yaw"));
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 160, box.y + box.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(async () => Math.abs(Number(await figure.getAttribute("data-yaw")) - before)).toBeGreaterThan(0.5);
+
+  // Clicking the AI cell (the middle one) selects it and says who it is.
+  await page.waitForTimeout(1500); // let the drag's momentum settle
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.42);
+  await expect(page.getByTestId("hive-info")).toBeVisible();
+  await expect(figure).toHaveAttribute("data-selected", /.+/);
+});
+
+test("the theme switch changes the look and is remembered", async ({ page }) => {
+  await page.goto("/");
+  const html = page.locator("html");
+  const toggle = page.getByRole("button", { name: /Switch to (dark|light) mode/ });
+  const startedDark = (await html.getAttribute("data-theme")) === "dark";
+  await toggle.click();
+  await expect(html).toHaveAttribute("data-theme", startedDark ? "light" : "dark");
+  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", startedDark ? "light" : "dark"); // remembered, no flash
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(bg);
 });
 
 test("T6.1-2 the privacy page states Gemini processing and who can read a conversation", async ({ page }) => {
@@ -55,7 +93,9 @@ test("T6.1-8 with reduced motion everything is visible straight away and scrolli
   // Sections far down the page are already fully opaque without any scrolling.
   const opacity = await page.getByText("Plainly stated.").evaluate((el) => getComputedStyle(el.closest("[data-reveal]")!).opacity);
   expect(opacity).toBe("1");
-  await expect(page.getByText("Where should we go for Dan's birthday?")).toBeVisible();
+  // No WebGL scene: the static honeycomb drawing stays, and nothing moves.
+  await expect(page.locator(".hive-figure canvas")).toHaveCount(0);
+  await expect(page.getByRole("img", { name: /Honeycomb/ })).toBeVisible();
   await context.close();
 });
 

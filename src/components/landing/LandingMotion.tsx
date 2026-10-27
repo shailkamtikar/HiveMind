@@ -53,12 +53,22 @@ export function LandingMotion() {
           stagger: 0.55,
           delay: 0.9,
         });
+        // Section rules draw themselves in from the left as each section arrives.
+        gsap.utils.toArray<HTMLElement>(".section-rule .rule").forEach((rule) => {
+          gsap.to(rule, {
+            scaleX: 1,
+            duration: 1.1,
+            ease: "power3.out",
+            scrollTrigger: { trigger: rule, start: "top 92%", once: true },
+          });
+        });
         gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((el) => {
           gsap.to(el, {
             opacity: 1,
             y: 0,
             duration: 0.8,
             ease: "power2.out",
+            delay: Number(el.style.getPropertyValue("--i") || 0) * 0.08,
             scrollTrigger: { trigger: el, start: "top 88%", once: true },
           });
         });

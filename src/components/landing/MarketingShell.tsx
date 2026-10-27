@@ -4,6 +4,7 @@ import { AmbientBackground } from "@/components/fx/AmbientBackground";
 import { LogoMark } from "@/components/fx/Logo";
 import { getUser } from "@/lib/auth/getUser";
 import { LandingMotion } from "./LandingMotion";
+import { ThemeToggle } from "./ThemeToggle";
 
 const ctaClass =
   "btn-shine inline-flex h-10 items-center justify-center rounded-[var(--radius)] bg-accent px-4 text-sm font-medium text-accent-foreground";
@@ -29,19 +30,31 @@ export function MarketingShell({ children }: { children: ReactNode }) {
       <noscript>
         <style>{"[data-reveal]{opacity:1!important;transform:none!important}"}</style>
       </noscript>
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 font-display text-2xl leading-none">
-          <LogoMark />
-          HiveMind
-        </Link>
-        <nav aria-label="Main" className="flex items-center gap-4">
-          <Link href="/privacy" className="font-mono text-[11px] uppercase tracking-wide text-muted hover:text-foreground">
-            Privacy
-          </Link>
-          <Suspense fallback={<span className="inline-block h-10 w-24" aria-hidden />}>
-            <HeaderAction />
-          </Suspense>
-        </nav>
+      <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="flex items-center gap-2 font-mono text-[12px] font-semibold uppercase tracking-[0.08em]">
+              <LogoMark className="size-5" />
+              HiveMind
+            </Link>
+            <span className="hidden font-mono text-[11px] uppercase tracking-wide text-muted md:inline">Shared AI chat for friends</span>
+          </div>
+          <nav aria-label="Main" className="flex items-center gap-4">
+            <Link href="/#how" className="hidden font-mono text-[11px] uppercase tracking-wide text-muted hover:text-foreground sm:inline">
+              How it works
+            </Link>
+            <Link href="/#honest" className="hidden font-mono text-[11px] uppercase tracking-wide text-muted hover:text-foreground sm:inline">
+              Your data
+            </Link>
+            <Link href="/privacy" className="hidden font-mono text-[11px] uppercase tracking-wide text-muted hover:text-foreground md:inline">
+              Privacy
+            </Link>
+            <ThemeToggle />
+            <Suspense fallback={<span className="inline-block h-10 w-24" aria-hidden />}>
+              <HeaderAction />
+            </Suspense>
+          </nav>
+        </div>
       </header>
       {children}
       <footer className="mx-auto mt-24 w-full max-w-6xl border-t border-border px-4 py-8 sm:px-6">

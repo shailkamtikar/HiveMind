@@ -48,6 +48,7 @@ Rule: components use token class names (`bg-surface`, `text-muted`, ...). Hex va
 | Native `<dialog>` | in use | web platform |
 | GSAP 3.15 (incl. ScrollTrigger) | in use, landing and privacy pages only | "Standard 'no charge' license" (https://gsap.com/standard-license). The page says GSAP is free for everyone; the full terms could not be read in detail while building, so re-read them before any commercial launch. |
 | Lenis 1.3 | in use, landing and privacy pages only | MIT |
+| three.js 0.186 | in use, landing hero only (loaded on demand) | MIT |
 | React Bits | patterns re-implemented, no code copied | The motion components in `src/components/fx` (blur-in text, spotlight card, word reveal, shiny text) are written from scratch in the style of React Bits; no component source was copied, so no licence terms apply. |
 | 21st.dev | pattern reference only | No component source copied. |
 | React Bits components | none copied yet | check each component's license before copying |

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ChatPreview } from "@/components/landing/ChatPreview";
+import { Line, SectionRule, TickCard } from "@/components/landing/Editorial";
+import { HiveFallback } from "@/components/landing/HiveFallback";
+import { HiveScene } from "@/components/landing/HiveScene";
 import { MarketingShell } from "@/components/landing/MarketingShell";
-
-const HEADLINE = ["One", "chat.", "Many", "minds."];
 
 const STEPS = [
   {
@@ -19,104 +20,116 @@ const STEPS = [
   },
 ];
 
+const FACTS = [
+  ["People", "Up to five per conversation"],
+  ["Invite links", "Three days, revocable"],
+  ["Message length", "1000 characters"],
+  ["AI", "Google Gemini, one reply per message"],
+  ["Deleting", "Not in this version"],
+];
+
 const eyebrow = "font-mono text-[11px] uppercase tracking-wide text-muted";
 
 export default function Home() {
   return (
     <MarketingShell>
       <main>
-        <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pb-8 pt-10 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:pt-20">
+        <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pb-10 pt-12 sm:px-6 lg:grid-cols-[1fr_1fr] lg:pt-20">
           <div>
-            <p className={eyebrow}>A shared AI chat for friends</p>
-            <h1 className="mt-5 font-display text-[3.4rem] leading-[0.95] sm:text-7xl lg:text-[5.5rem]" aria-label="One chat. Many minds. One AI.">
+            <p className={`${eyebrow} flex items-center gap-3`}>
+              <span aria-hidden="true" className="inline-block h-px w-10 bg-foreground/40" />
+              Group chat → shared AI
+            </p>
+            <h1 className="mt-6 font-display text-[3.3rem] leading-[0.96] tracking-[-0.015em] sm:text-7xl lg:text-[5.4rem]" aria-label="One chat. Many minds. One AI.">
               <span aria-hidden="true">
-                {HEADLINE.map((w, i) => (
-                  <span key={i} className="inline-block overflow-hidden align-bottom">
-                    <span data-hero-word className="inline-block pr-[0.22em]">
-                      {w}
-                    </span>
-                  </span>
-                ))}
-                <br />
-                <span className="inline-block overflow-hidden align-bottom">
-                  <span data-hero-word className="inline-block pr-[0.22em]">
-                    One
-                  </span>
-                </span>
-                <span className="inline-block overflow-hidden align-bottom">
-                  <span data-hero-word className="inline-block italic text-accent-text">
-                    AI.
-                  </span>
-                </span>
+                <Line i={0}>One chat.</Line>
+                <Line i={1}>Many minds.</Line>
+                <Line i={2}>
+                  One <em className="text-accent-text">AI.</em>
+                </Line>
               </span>
             </h1>
-            <p className="mt-6 max-w-md text-lg leading-relaxed text-muted">
+            <p className="rise mt-7 max-w-md text-lg leading-relaxed text-muted" style={{ "--i": 6 } as React.CSSProperties}>
               HiveMind is one conversation that everyone, and one AI, shares. Ask together, disagree out loud, and let the AI answer with the whole thread in front of it.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                href="/login?mode=signup"
-                className="btn-shine inline-flex h-11 items-center justify-center rounded-[var(--radius)] bg-accent px-5 text-sm font-medium text-accent-foreground"
-              >
-                Start a conversation
-              </Link>
-              <Link href="/login" className="inline-flex h-11 items-center px-2 text-sm text-muted underline-offset-4 hover:text-foreground hover:underline">
-                I already have an account
-              </Link>
+            <div className="rise mt-9" style={{ "--i": 8 } as React.CSSProperties}>
+              <TickCard href="/login?mode=signup" eyebrow="Next" title="Start a conversation" hint="Free to try · email and password · up to five people" />
+              <p className="mt-4">
+                <Link href="/login" className="text-sm text-muted underline-offset-4 hover:text-foreground hover:underline">
+                  I already have an account
+                </Link>
+              </p>
             </div>
           </div>
-          <ChatPreview />
+          <div className="rise" style={{ "--i": 4 } as React.CSSProperties}>
+            <HiveScene fallback={<HiveFallback />} />
+          </div>
         </section>
 
         <section className="mx-auto mt-28 w-full max-w-6xl px-4 sm:px-6" aria-labelledby="how">
-          <p className={eyebrow} data-reveal>
-            How it works
-          </p>
-          <h2 id="how" className="mt-3 max-w-xl font-display text-4xl leading-tight sm:text-5xl" data-reveal>
+          <SectionRule n="01" label="How it works" />
+          <h2 id="how" className="mt-8 max-w-xl scroll-mt-24 font-display text-4xl leading-tight sm:text-5xl" data-reveal>
             Three steps, no setup for your friends.
           </h2>
           <ol className="mt-10 border-t border-border">
             {STEPS.map((s, i) => (
-              <li key={s.title} className="grid gap-2 border-b border-border py-7 sm:grid-cols-[6rem_1fr_1.4fr] sm:gap-8" data-reveal>
-                <span className="font-mono text-sm text-accent-text">{String(i + 1).padStart(2, "0")}</span>
+              <li key={s.title} className="grid gap-2 border-b border-border py-7 sm:grid-cols-[6rem_1fr_1.4fr] sm:gap-8" data-reveal style={{ "--i": i } as React.CSSProperties}>
+                <span className="font-mono text-sm text-accent-text">{i + 1}</span>
                 <h3 className="font-display text-2xl leading-snug">{s.title}</h3>
-                <p className="text-muted leading-relaxed">{s.body}</p>
+                <p className="leading-relaxed text-muted">{s.body}</p>
               </li>
             ))}
           </ol>
+          <div className="mt-14 grid items-center gap-10 lg:grid-cols-[1fr_1.1fr]" data-reveal>
+            <div>
+              <p className={eyebrow}>What a conversation looks like</p>
+              <p className="mt-3 max-w-sm font-display text-3xl leading-tight">Everyone talks. The AI answers whoever spoke last, by name.</p>
+            </div>
+            <ChatPreview />
+          </div>
         </section>
 
-        <section className="mx-auto mt-28 grid w-full max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_1.4fr]" aria-labelledby="honest">
-          <div data-reveal>
-            <p className={eyebrow}>What happens to your messages</p>
-            <h2 id="honest" className="mt-3 font-display text-4xl leading-tight sm:text-5xl">
+        <section className="mx-auto mt-28 w-full max-w-6xl px-4 sm:px-6" aria-labelledby="facts">
+          <SectionRule n="02" label="What it does" />
+          <h2 id="facts" className="mt-8 max-w-xl font-display text-4xl leading-tight sm:text-5xl" data-reveal>
+            Small on purpose.
+          </h2>
+          <dl className="mt-10 border-t border-border">
+            {FACTS.map(([k, v], i) => (
+              <div key={k} className="grid gap-1 border-b border-border py-5 sm:grid-cols-[14rem_1fr] sm:gap-8" data-reveal style={{ "--i": i } as React.CSSProperties}>
+                <dt className={eyebrow}>{k}</dt>
+                <dd className="font-display text-2xl leading-snug">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section className="mx-auto mt-28 w-full max-w-6xl px-4 sm:px-6" aria-labelledby="honest">
+          <SectionRule n="03" label="Your data" />
+          <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_1.4fr]">
+            <h2 id="honest" className="scroll-mt-24 font-display text-4xl leading-tight sm:text-5xl" data-reveal>
               Plainly stated.
             </h2>
-          </div>
-          <div className="space-y-5 leading-relaxed" data-reveal>
-            <p>
-              Everything said in a conversation is visible to every member of it, including people who join later. Nobody can edit or delete a message in this version.
-            </p>
-            <p>
-              To answer, HiveMind sends the latest messages and the names of the people who wrote them to Google&apos;s Gemini. On the free tier Google may use that text to improve its products, and people may review it. Don&apos;t share anything you would not want a stranger to read.
-            </p>
-            <p>
-              <Link href="/privacy" className="text-accent-text underline underline-offset-4">
-                Read the full privacy and data notice
-              </Link>
-            </p>
+            <div className="space-y-5 leading-relaxed" data-reveal>
+              <p>
+                Everything said in a conversation is visible to every member of it, including people who join later. Nobody can edit or delete a message in this version.
+              </p>
+              <p>
+                To answer, HiveMind sends the latest messages and the names of the people who wrote them to Google&apos;s Gemini. On the free tier Google may use that text to improve its products, and people may review it. Don&apos;t share anything you would not want a stranger to read.
+              </p>
+              <p>
+                <Link href="/privacy" className="text-accent-text underline underline-offset-4">
+                  Read the full privacy and data notice
+                </Link>
+              </p>
+            </div>
           </div>
         </section>
 
         <section className="mx-auto mt-28 w-full max-w-6xl px-4 sm:px-6" data-reveal>
-          <div className="flex flex-col items-start justify-between gap-6 border-t border-border pt-10 sm:flex-row sm:items-end">
+          <div className="flex flex-col items-start justify-between gap-8 border-t border-border pt-10 lg:flex-row lg:items-center">
             <h2 className="max-w-lg font-display text-4xl leading-tight sm:text-5xl">Bring the group. Ask the question.</h2>
-            <Link
-              href="/login?mode=signup"
-              className="btn-shine inline-flex h-11 items-center justify-center rounded-[var(--radius)] bg-accent px-5 text-sm font-medium text-accent-foreground"
-            >
-              Create an account
-            </Link>
+            <TickCard href="/login?mode=signup" eyebrow="Ready" title="Create an account" hint="Email and password · takes a minute" />
           </div>
         </section>
       </main>
